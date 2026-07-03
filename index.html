@@ -1,0 +1,2781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Street Shooter — Play Any Place on Earth</title>
+<style>
+  :root{
+    --hud:#f2ede3; --accent:#e8b04b; --danger:#c8402f; --shadow:rgba(0,0,0,.55);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0b0d12;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;touch-action:none;overscroll-behavior:none}
+  canvas{display:block}
+  #hud{position:fixed;inset:0;pointer-events:none;user-select:none;-webkit-user-select:none}
+
+  /* ---- touch controls ---- */
+  #touchui{display:none;position:fixed;inset:0;pointer-events:none;z-index:20}
+  .tbtn{position:absolute;pointer-events:auto;background:rgba(20,22,28,.5);border:2px solid rgba(242,237,227,.55);
+    color:var(--hud);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;
+    letter-spacing:1px;text-shadow:0 1px 3px #000;user-select:none;-webkit-user-select:none}
+  #btnFire{right:24px;bottom:96px;width:96px;height:96px;font-size:16px;border-color:rgba(232,176,75,.9)}
+  #btnJump{right:138px;bottom:44px;width:62px;height:62px;font-size:12px}
+  #btnReload{right:142px;bottom:158px;width:52px;height:52px;font-size:15px}
+  #btnWeapon{right:34px;bottom:212px;width:52px;height:52px;font-size:13px}
+  #btnPause{left:50%;top:12px;transform:translateX(-50%);width:46px;height:40px;font-size:13px;border-radius:10px}
+  #stick{position:absolute;left:24px;bottom:56px;width:132px;height:132px;border-radius:50%;
+    border:2px solid rgba(242,237,227,.4);background:rgba(20,22,28,.32);pointer-events:auto}
+  #knob{position:absolute;left:50%;top:50%;width:58px;height:58px;border-radius:50%;
+    background:rgba(242,237,227,.72);transform:translate(-50%,-50%);box-shadow:0 3px 10px rgba(0,0,0,.4)}
+  body.touch #mapwrap{width:124px;height:124px;left:auto;right:16px;top:60px;bottom:auto;border-width:2px}
+  body.touch #healthbar{left:auto;right:18px;top:196px;bottom:auto;width:120px}
+  body.touch #armorlabel{display:none}
+  body.touch #ammo{right:auto;left:50%;transform:translateX(-50%);bottom:14px;text-align:center}
+  body.touch #ammo .num{font-size:30px}
+  body.touch #topbar{right:auto;left:14px;top:12px;text-align:left}
+  body.touch #areacard{bottom:170px}
+  body.touch #areacard .big{font-size:38px}
+
+  /* ---- offline warning ---- */
+  #offline{display:none;margin-top:18px;color:#ffb199;font-size:13px;letter-spacing:1.5px;
+    border:1px solid rgba(255,177,153,.5);padding:10px 18px;border-radius:4px;max-width:420px;text-align:center;line-height:1.6}
+
+  /* ---- crosshair ---- */
+  #crosshair{position:absolute;left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%);opacity:.9}
+  #crosshair span{position:absolute;background:var(--hud);box-shadow:0 0 3px #000}
+  #crosshair .h{width:6px;height:2px;top:10px}
+  #crosshair .v{width:2px;height:6px;left:10px}
+  #crosshair .l{left:0}#crosshair .r{right:0}#crosshair .t{top:0}#crosshair .b{bottom:0}
+  #hitmark{position:absolute;left:50%;top:50%;width:26px;height:26px;transform:translate(-50%,-50%) rotate(45deg);opacity:0;transition:opacity .12s}
+  #hitmark span{position:absolute;background:#ff5a3c;box-shadow:0 0 4px #000}
+  #hitmark .a{width:10px;height:2px;top:12px;left:0}#hitmark .b{width:10px;height:2px;top:12px;right:0}
+  #hitmark .c{width:2px;height:10px;left:12px;top:0}#hitmark .d{width:2px;height:10px;left:12px;bottom:0}
+
+  /* ---- minimap (GTA bottom-left) ---- */
+  #mapwrap{position:absolute;left:22px;bottom:22px;width:210px;height:210px;border-radius:50%;
+    border:3px solid rgba(242,237,227,.85);box-shadow:0 6px 24px var(--shadow), inset 0 0 40px rgba(0,0,0,.5);overflow:hidden;background:#151a20}
+  #minimap{width:100%;height:100%}
+  #healthbar{position:absolute;left:26px;bottom:242px;width:202px;height:12px;background:rgba(0,0,0,.55);
+    border:2px solid rgba(242,237,227,.75);border-radius:3px;overflow:hidden}
+  #healthfill{height:100%;width:100%;background:linear-gradient(#69b34c,#4d8f37);transition:width .2s}
+  #armorlabel{position:absolute;left:26px;bottom:260px;color:var(--hud);font-size:11px;letter-spacing:2px;text-shadow:0 1px 3px #000;font-weight:600}
+
+  /* ---- ammo (bottom-right) ---- */
+  #ammo{position:absolute;right:28px;bottom:26px;text-align:right;color:var(--hud);text-shadow:0 2px 6px #000}
+  #ammo .num{font-size:44px;font-weight:800;letter-spacing:1px;font-variant-numeric:tabular-nums}
+  #ammo .num small{font-size:20px;color:#b9b2a4;font-weight:600}
+  #ammo .wname{font-size:12px;letter-spacing:3px;color:var(--accent);font-weight:700}
+  #reloadhint{font-size:11px;color:#ffb199;letter-spacing:2px;height:14px}
+
+  /* ---- top bar ---- */
+  #topbar{position:absolute;top:18px;right:24px;text-align:right;color:var(--hud);text-shadow:0 2px 5px #000}
+  #street{font-size:15px;font-weight:700;letter-spacing:1px;color:var(--accent)}
+  #kills{font-size:12px;letter-spacing:2px;margin-top:3px;color:#cfc8ba}
+
+  /* ---- area title card (GTA style) ---- */
+  #areacard{position:absolute;left:38px;bottom:120px;opacity:0;transform:translateY(14px);transition:opacity 1s ease,transform 1s ease;pointer-events:none}
+  #areacard .small{font-size:15px;letter-spacing:6px;color:#d8d2c4;text-shadow:0 2px 8px #000;font-weight:600}
+  #areacard .big{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:700;font-size:64px;
+    color:#fff;text-shadow:0 4px 18px rgba(0,0,0,.85);line-height:1.05}
+  #areacard .rule{width:120px;height:3px;background:var(--accent);margin-top:8px;box-shadow:0 2px 8px #000}
+
+  /* ---- damage vignette ---- */
+  #dmg{position:absolute;inset:0;background:radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(180,20,10,.55) 100%);opacity:0;transition:opacity .25s}
+
+  /* ---- loading / start ---- */
+  #loader{position:fixed;inset:0;background:linear-gradient(160deg,#10141c 0%,#1a2230 60%,#2a2318 100%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:50;transition:opacity .8s}
+  #loader h1{font-family:Georgia,serif;font-style:italic;color:#fff;font-size:54px;text-shadow:0 6px 30px #000;letter-spacing:1px}
+  #loader h2{color:var(--accent);font-size:13px;letter-spacing:6px;margin-top:6px;font-weight:600}
+  #searchphase{display:flex;flex-direction:column;align-items:center;margin-top:30px;width:min(520px,90vw)}
+  #searchrow{display:flex;width:100%;gap:8px}
+  #addr{flex:1;padding:13px 16px;font-size:15px;border-radius:4px;border:1px solid rgba(242,237,227,.35);
+    background:rgba(10,12,18,.7);color:var(--hud);outline:none;letter-spacing:.5px}
+  #addr:focus{border-color:var(--accent)}
+  #searchbtn{background:rgba(242,237,227,.14);color:var(--hud);border:1px solid rgba(242,237,227,.35);
+    padding:0 22px;border-radius:4px;font-weight:700;letter-spacing:2px;cursor:pointer;font-size:13px}
+  #searchbtn:hover{background:rgba(242,237,227,.24)}
+  #results{width:100%;margin-top:10px;max-height:200px;overflow-y:auto}
+  .res{padding:11px 14px;color:#d8d2c4;font-size:13px;letter-spacing:.4px;cursor:pointer;border-radius:4px;
+    background:rgba(10,12,18,.55);margin-bottom:5px;border:1px solid transparent;text-align:left}
+  .res:hover{border-color:var(--accent);color:#fff}
+  .res small{color:#8d8778;display:block;margin-top:2px}
+  #cachenote{margin-top:14px;color:#6f6a5f;font-size:11px;letter-spacing:.5px;text-align:center}
+  #clearcache{color:#9a9284;text-decoration:underline;cursor:pointer;pointer-events:auto}
+  #clearcache:hover{color:var(--accent)}
+  #modetoggle{display:flex;gap:10px;width:100%;margin-top:16px}
+  .modebtn{flex:1;pointer-events:auto;cursor:pointer;background:rgba(10,12,18,.55);color:#c8c2b4;
+    border:1px solid rgba(242,237,227,.22);border-radius:5px;padding:12px 10px;display:flex;flex-direction:column;
+    align-items:center;gap:3px;transition:all .15s}
+  .modebtn:hover{border-color:rgba(242,237,227,.5)}
+  .modebtn.active{border-color:var(--accent);background:rgba(232,176,75,.14);color:#fff}
+  .modebtn .mt-title{font-size:14px;font-weight:800;letter-spacing:1.5px}
+  .modebtn .mt-sub{font-size:10.5px;letter-spacing:.5px;color:#8d8778}
+  .modebtn.active .mt-sub{color:#d8c9a8}
+  #playbtn{margin-top:18px;background:var(--accent);color:#171308;border:none;font-size:14px;font-weight:800;
+    letter-spacing:2px;padding:13px 38px;border-radius:4px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.5);max-width:100%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #playbtn:hover{filter:brightness(1.1)}
+  #relocate{margin-top:26px;pointer-events:auto;cursor:pointer;background:rgba(242,237,227,.12);color:var(--hud);
+    border:1px solid rgba(242,237,227,.4);font-size:13px;font-weight:700;letter-spacing:2px;padding:12px 28px;border-radius:4px}
+  #relocate:hover{background:rgba(242,237,227,.22)}
+  #bar{display:none;width:340px;height:6px;background:rgba(255,255,255,.12);border-radius:3px;margin-top:34px;overflow:hidden}
+  #barfill{height:100%;width:0%;background:var(--accent);transition:width .3s}
+  #loadmsg{color:#a9a294;font-size:12px;letter-spacing:2px;margin-top:12px;height:16px}
+  #startbtn{display:none;margin-top:30px;pointer-events:auto;cursor:pointer;background:var(--accent);color:#171308;
+    border:none;font-size:15px;font-weight:800;letter-spacing:3px;padding:14px 44px;border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  #startbtn:hover{filter:brightness(1.1)}
+  #controls{color:#8d8778;font-size:12px;letter-spacing:1px;margin-top:26px;line-height:1.9;text-align:center}
+  #controls b{color:#d8d2c4}
+
+  /* ---- pause / death ---- */
+  #overlay{position:fixed;inset:0;background:rgba(8,10,14,.78);display:none;align-items:center;justify-content:center;
+    flex-direction:column;z-index:40;color:#fff;text-align:center}
+  #overlay h1{font-family:Georgia,serif;font-style:italic;font-size:58px;text-shadow:0 4px 20px #000}
+  #overlay p{color:#b9b2a4;letter-spacing:2px;margin-top:14px;font-size:14px}
+  .wasted{color:#c8402f!important}
+</style>
+</head>
+<body>
+<div id="loader">
+  <h1 id="loadtitle">Street Shooter</h1>
+  <h2 id="loadsub">PLAY ANY PLACE ON EARTH</h2>
+  <div id="searchphase">
+    <div id="searchrow">
+      <input id="addr" type="text" placeholder="Search any address, city or place…" autocomplete="off">
+      <button id="searchbtn">SEARCH</button>
+    </div>
+    <div id="results"></div>
+    <div id="modetoggle">
+      <button class="modebtn active" id="modeExplore" data-mode="explore">
+        <span class="mt-title">🚶 EXPLORING</span><span class="mt-sub">Roam the city · few threats</span>
+      </button>
+      <button class="modebtn" id="modeDeath" data-mode="deathmatch">
+        <span class="mt-title">💀 DEATHMATCH</span><span class="mt-sub">Streets swarming · all-out war</span>
+      </button>
+    </div>
+    <button id="playbtn">PLAY: VASASTAN, STOCKHOLM</button>
+    <div id="cachenote">Visited places are saved locally and load instantly next time · <span id="clearcache">clear saved maps</span></div>
+  </div>
+  <div id="bar"><div id="barfill"></div></div>
+  <div id="loadmsg">Search anywhere on Earth — or play the default: Vasastan, Stockholm</div>
+  <div id="offline"></div>
+  <button id="startbtn">ENTER THE CITY</button>
+  <div id="controls">
+    <b>WASD</b> move &nbsp; <b>MOUSE</b> look &nbsp; <b>LMB</b> fire &nbsp; <b>R</b> reload<br>
+    <b>SHIFT</b> sprint &nbsp; <b>SPACE</b> jump &nbsp; <b>1 / 2</b> weapons &nbsp; <b>ESC</b> pause
+  </div>
+</div>
+
+<div id="hud">
+  <div id="crosshair"><span class="h l"></span><span class="h r"></span><span class="v t"></span><span class="v b"></span></div>
+  <div id="hitmark"><span class="a"></span><span class="b"></span><span class="c"></span><span class="d"></span></div>
+  <div id="dmg"></div>
+  <div id="armorlabel">HEALTH</div>
+  <div id="healthbar"><div id="healthfill"></div></div>
+  <div id="mapwrap"><canvas id="minimap" width="420" height="420"></canvas></div>
+  <div id="ammo">
+    <div class="wname" id="wname">PISTOL</div>
+    <div class="num"><span id="mag">12</span><small> / <span id="reserve">96</span></small></div>
+    <div id="reloadhint"></div>
+  </div>
+  <div id="topbar"><div id="street"></div><div id="kills"></div></div>
+  <div id="areacard"><div class="small" id="areasmall"></div><div class="big" id="areaname">Vasastan</div><div class="rule"></div></div>
+</div>
+
+<div id="overlay"><h1 id="ovtitle">PAUSED</h1><p id="ovsub">Click to resume</p>
+  <button id="relocate">🌍 &nbsp;PLAY A NEW LOCATION</button></div>
+
+<div id="touchui">
+  <div id="stick"><div id="knob"></div></div>
+  <div class="tbtn" id="btnFire">FIRE</div>
+  <div class="tbtn" id="btnJump">JUMP</div>
+  <div class="tbtn" id="btnReload">R</div>
+  <div class="tbtn" id="btnWeapon">1·2</div>
+  <div class="tbtn" id="btnPause">▐▐</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ================================================================
+   STOCKHOLM STREETS — open-world FPS built from live OSM data
+   Center: 59.341339, 18.064857 (Vasastan / Norrmalm, Stockholm)
+   ================================================================ */
+'use strict';
+
+const DEFAULT_CENTER = { lat: 59.341339339340124, lon: 18.064857049135984, label: 'Vasastan, Stockholm' };
+let CENTER = { lat: DEFAULT_CENTER.lat, lon: DEFAULT_CENTER.lon };
+const RADIUS_M = 620;                 // playable radius fetched from OSM
+const HAS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+const IS_MOBILE = HAS_TOUCH && matchMedia('(pointer: coarse)').matches;   // phones/tablets, NOT touchscreen desktops
+let lastTouchT = -1e9;                    // to ignore synthetic mouse events after touches
+const QUALITY = {
+  shadows: !IS_MOBILE,
+  pixelRatio: IS_MOBILE ? 1 : 1.6,
+  enemies: IS_MOBILE ? 10 : 14
+};
+const M_PER_DEG_LAT = 111320;
+let M_PER_DEG_LON = 111320 * Math.cos(CENTER.lat * Math.PI / 180);
+function setCenter(lat, lon) {
+  CENTER = { lat, lon };
+  M_PER_DEG_LON = 111320 * Math.cos(lat * Math.PI / 180);
+}
+
+function ll2xz(lat, lon) {            // world: x east, z south (three.js -z = north)
+  return {
+    x: (lon - CENTER.lon) * M_PER_DEG_LON,
+    z: -(lat - CENTER.lat) * M_PER_DEG_LAT
+  };
+}
+// deterministic rng so the city looks the same every visit
+let _seed = 1337;
+function rnd() { _seed = (_seed * 16807) % 2147483647; return (_seed - 1) / 2147483646; }
+
+/* ---------------- REAL TERRAIN (AWS terrarium DEM tiles) ---------------- */
+const ELEV = { data:null, W:0, H:0, tx0:0, ty0:0, z:15, base:0, scale:1.25, ok:false };
+const tileXf = (lon, z) => (lon + 180) / 360 * Math.pow(2, z);
+const tileYf = (lat, z) => { const r = lat * Math.PI/180;
+  return (1 - Math.log(Math.tan(r) + 1/Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z); };
+
+async function fetchElevation() {
+  try {
+    const z = ELEV.z, dLat = (RADIUS_M + 200) / M_PER_DEG_LAT, dLon = (RADIUS_M + 200) / M_PER_DEG_LON;
+    const tx0 = Math.floor(tileXf(CENTER.lon - dLon, z)), tx1 = Math.floor(tileXf(CENTER.lon + dLon, z));
+    const ty0 = Math.floor(tileYf(CENTER.lat + dLat, z)), ty1 = Math.floor(tileYf(CENTER.lat - dLat, z));
+    const cv = document.createElement('canvas');
+    cv.width = (tx1 - tx0 + 1) * 256; cv.height = (ty1 - ty0 + 1) * 256;
+    const ctx = cv.getContext('2d');
+    const jobs = [];
+    for (let tx = tx0; tx <= tx1; tx++) for (let ty = ty0; ty <= ty1; ty++) {
+      jobs.push(new Promise((res, rej) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        const to = setTimeout(() => { img.src = ''; rej(new Error('tile timeout')); }, 15000);
+        img.onload = () => { clearTimeout(to); ctx.drawImage(img, (tx - tx0) * 256, (ty - ty0) * 256); res(); };
+        img.onerror = e => { clearTimeout(to); rej(e); };
+        img.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${tx}/${ty}.png`;
+      }));
+    }
+    await Promise.all(jobs);
+    ELEV.data = ctx.getImageData(0, 0, cv.width, cv.height);
+    ELEV.W = cv.width; ELEV.H = cv.height; ELEV.tx0 = tx0; ELEV.ty0 = ty0;
+    ELEV.ok = true; ELEV.base = 0;
+    ELEV.base = rawElev(CENTER.lat, CENTER.lon);
+    console.log('terrain loaded, base elevation', ELEV.base.toFixed(1) + 'm');
+  } catch (e) { console.warn('elevation unavailable — flat world', e); ELEV.ok = false; }
+}
+function rawElev(lat, lon) {
+  if (!ELEV.ok) return 0;
+  let fx = (tileXf(lon, ELEV.z) - ELEV.tx0) * 256, fy = (tileYf(lat, ELEV.z) - ELEV.ty0) * 256;
+  fx = Math.max(0, Math.min(ELEV.W - 2, fx)); fy = Math.max(0, Math.min(ELEV.H - 2, fy));
+  const x0 = Math.floor(fx), y0 = Math.floor(fy), ax = fx - x0, ay = fy - y0, d = ELEV.data.data;
+  const px = (xx, yy) => { const i = (yy * ELEV.W + xx) * 4; return d[i]*256 + d[i+1] + d[i+2]/256 - 32768; };
+  return px(x0,y0)*(1-ax)*(1-ay) + px(x0+1,y0)*ax*(1-ay) + px(x0,y0+1)*(1-ax)*ay + px(x0+1,y0+1)*ax*ay - ELEV.base;
+}
+function elevAt(x, z) {
+  if (!ELEV.ok) return 0;
+  return rawElev(CENTER.lat - z / M_PER_DEG_LAT, CENTER.lon + x / M_PER_DEG_LON) * ELEV.scale;
+}
+
+const $ = id => document.getElementById(id);
+const loadBar = p => $('barfill').style.width = (p * 100).toFixed(0) + '%';
+const loadMsg = m => $('loadmsg').textContent = m;
+
+/* ---------------- OSM FETCH ---------------- */
+// Public Overpass instances (verified against the OSM wiki list, 2026). The main overpass-api.de
+// rejects many programmatic requests with 406 anti-scraper filtering, so healthier community
+// mirrors go first and the primary is the last resort.
+const OVERPASS_GLOBAL = [
+  'https://overpass.private.coffee/api/interpreter',   // Austria, no rate limit
+  'https://overpass.kumi.systems/api/interpreter',     // strong hardware
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter', // VK Maps, Russia — no limits
+  'https://api.openstreetmap.fr/oapi/interpreter',      // France (OSM-FR), global coverage
+  'https://overpass.osm.vi-di.fr/api/interpreter',      // France (vi-di), global coverage
+  'https://z.overpass-api.de/api/interpreter',          // FOSSGIS alt node (gall)
+  'https://lz4.overpass-api.de/api/interpreter',        // FOSSGIS alt node (lambert)
+  'https://overpass-api.de/api/interpreter'             // main — last resort
+];
+// Region-locked instances (verified to exist). Only cover their own area, but fast and offload
+// the global pool. Used first when the search center falls inside their box.
+const OVERPASS_REGIONAL = [
+  { url: 'https://overpass.osm.ch/api/interpreter',          bbox: [45.7, 5.8, 47.9, 10.6] },  // Switzerland
+  { url: 'https://overpass.openstreetmap.ie/api/interpreter', bbox: [51.3, -10.6, 55.5, -5.9] } // Ireland
+];
+function inBox(lat, lon, b) { return lat >= b[0] && lat <= b[2] && lon >= b[1] && lon <= b[3]; }
+// Build the mirror pool for the current CENTER: matching regional instances first, then globals.
+function mirrorPool() {
+  const regional = OVERPASS_REGIONAL.filter(r => inBox(CENTER.lat, CENTER.lon, r.bbox)).map(r => r.url);
+  return [...regional, ...OVERPASS_GLOBAL];
+}
+const OVERPASS = OVERPASS_GLOBAL;   // kept for any legacy reference
+
+function bbox() {
+  const dLat = RADIUS_M / M_PER_DEG_LAT, dLon = RADIUS_M / M_PER_DEG_LON;
+  return `${CENTER.lat - dLat},${CENTER.lon - dLon},${CENTER.lat + dLat},${CENTER.lon + dLon}`;
+}
+
+/* ---------------- LOCATION CACHE (IndexedDB) ---------------- */
+const CACHE_DB = 'streetshooter', CACHE_STORE = 'osm', CACHE_VER = 3;
+const CACHE_TTL = 1000 * 60 * 60 * 24 * 30;      // 30 days
+// key by ~11 m grid (snap, not round, so boundary jitter never splits a spot)
+function cacheKey(lat, lon) {
+  const g = 0.0002;   // ~22 m cells
+  return `v${CACHE_VER}:${Math.round(lat / g)},${Math.round(lon / g)}`;
+}
+
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    let req;
+    try { req = indexedDB.open(CACHE_DB, 1); }
+    catch (e) { return reject(e); }
+    req.onupgradeneeded = () => { req.result.createObjectStore(CACHE_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function cacheGet(lat, lon) {
+  try {
+    const db = await idbOpen();
+    return await new Promise((resolve) => {
+      const tx = db.transaction(CACHE_STORE, 'readonly');
+      const r = tx.objectStore(CACHE_STORE).get(cacheKey(lat, lon));
+      r.onsuccess = () => {
+        const v = r.result;
+        if (v && v.elements && (Date.now() - v.t) < CACHE_TTL) resolve(v);
+        else resolve(null);
+      };
+      r.onerror = () => resolve(null);
+    });
+  } catch (e) { return null; }
+}
+async function cachePut(lat, lon, elements) {
+  try {
+    const db = await idbOpen();
+    await new Promise((resolve) => {
+      const tx = db.transaction(CACHE_STORE, 'readwrite');
+      tx.objectStore(CACHE_STORE).put({ elements, t: Date.now() }, cacheKey(lat, lon));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch (e) { /* quota / private mode — silently skip */ }
+}
+async function cacheClear() {
+  try {
+    const db = await idbOpen();
+    await new Promise(res => {
+      const tx = db.transaction(CACHE_STORE, 'readwrite');
+      tx.objectStore(CACHE_STORE).clear();
+      tx.oncomplete = res; tx.onerror = res;
+    });
+  } catch (e) {}
+}
+
+// Four independent category queries. Splitting the one big query into smaller ones lets us
+// spread them across different mirrors in parallel, lowers per-query cost (fewer 406s/timeouts),
+// and degrades gracefully — losing one category still builds the rest.
+function osmQueries() {
+  const bb = bbox();
+  return {
+    buildings: `[out:json][timeout:30];(way["building"](${bb});relation["building"](${bb}););out geom;`,
+    roads:     `[out:json][timeout:30];(way["highway"](${bb});` +
+               `way["leisure"~"park|garden|playground|pitch|common"](${bb});` +
+               `way["landuse"~"grass|forest|cemetery|recreation_ground|village_green"](${bb});` +
+               `way["natural"="wood"](${bb}););out geom;`,
+    water:     `[out:json][timeout:30];(way["natural"~"water|coastline"](${bb});way["water"](${bb});` +
+               `way["waterway"~"^(riverbank|dock|river|stream|canal|ditch)$"](${bb});` +
+               `relation["natural"="water"](${bb});relation["waterway"="riverbank"](${bb});relation["water"](${bb}););out geom(${bb});`,
+    pois:      `[out:json][timeout:30];(node["natural"="tree"](${bb});nwr["shop"](${bb});` +
+               `nwr["amenity"]["name"](${bb});` +
+               `nwr["amenity"~"^(cafe|restaurant|bar|pub|fast_food|pharmacy|bank|cinema|theatre|nightclub|ice_cream)$"](${bb});` +
+               `nwr["healthcare"]["name"](${bb});nwr["tourism"]["name"](${bb});` +
+               `nwr["tourism"~"^(hotel|hostel|museum|gallery)$"](${bb});` +
+               `nwr["leisure"]["name"](${bb});nwr["craft"](${bb});nwr["office"]["name"](${bb}););out geom;`
+  };
+}
+
+// Race one query across the full mirror pool. Hedge after 8s, first valid 200 wins.
+// Critically: only give up when EVERY mirror has been tried and none is still in flight.
+function raceQuery(q, mirrors, label) {
+  const controllers = [];
+  const attempt = url => {
+    const ctrl = new AbortController(); controllers.push(ctrl);
+    const host = new URL(url).host;
+    return fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctrl.signal })
+      .then(async r => {
+        if (r.status === 406 || r.status === 429) throw new Error(host + ' ' + r.status);
+        if (!r.ok) throw new Error(host + ' HTTP ' + r.status);
+        const j = await r.json();
+        if (!j || !Array.isArray(j.elements)) throw new Error(host + ' bad payload');
+        return j.elements;
+      });
+  };
+  return new Promise(resolve => {
+    let launched = 0, pending = 0, failed = 0, done = false;
+    const timers = [];
+    const finish = res => {
+      if (done) return; done = true;
+      timers.forEach(clearTimeout);
+      for (const c of controllers) { try { c.abort(); } catch (e) {} }
+      resolve(res);
+    };
+    const maybeGiveUp = () => {
+      // only fail once every mirror has been launched AND none is still pending
+      if (!done && launched >= mirrors.length && pending === 0) finish(null);
+    };
+    const launchNext = () => {
+      if (done || launched >= mirrors.length) return;
+      const url = mirrors[launched++]; pending++;
+      attempt(url).then(els => finish(els))           // any valid 200 wins
+        .catch(e => {
+          console.warn(label, e.message || e);
+          pending--; failed++;
+          if (!done && launched < mirrors.length) launchNext();  // immediately try the next
+          else maybeGiveUp();
+        });
+      // hedge: if this one is slow, bring in the next mirror after 8s (don't wait for failure)
+      if (launched < mirrors.length) timers.push(setTimeout(launchNext, 8000));
+    };
+    launchNext();
+    // generous absolute ceiling per category so a single stuck category can't hang forever,
+    // but long enough that all mirrors get a real chance
+    timers.push(setTimeout(() => finish(done ? undefined : null), 90000));
+  });
+}
+
+// shuffle a copy so the four categories don't all hammer the same mirror first
+function shuffled(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+async function fetchOSM() {
+  const Q = osmQueries();
+  const cats = Object.keys(Q);                    // buildings, roads, water, pois
+  let doneCount = 0;
+  const t0 = performance.now();
+
+  // regional instances (if the location is inside one) are pinned to the front for every
+  // category; the global pool is shuffled per-category so they fan out across servers.
+  const regional = OVERPASS_REGIONAL.filter(r => inBox(CENTER.lat, CENTER.lon, r.bbox)).map(r => r.url);
+  if (regional.length) console.log('using regional Overpass:', regional.join(', '));
+
+  const hb = setInterval(() => {
+    loadMsg('Downloading map — ' + doneCount + '/' + cats.length + ' parts · '
+      + Math.round((performance.now() - t0) / 1000) + 's'
+      + (regional.length ? ' · regional server' : ''));
+  }, 1200);
+
+  const results = await Promise.all(cats.map((cat) => {
+    const pool = [...regional, ...shuffled(OVERPASS_GLOBAL)];
+    return raceQuery(Q[cat], pool, cat)
+      .then(els => { doneCount++; return els; });
+  }));
+  clearInterval(hb);
+
+  const merged = [];
+  let anyReal = false;
+  const failedCats = [];
+  results.forEach((els, i) => {
+    if (els && els.length) { merged.push(...els); if (cats[i] === 'buildings' || cats[i] === 'roads') anyReal = true; }
+    else { failedCats.push(cats[i]); console.warn('category failed or empty:', cats[i]); }
+  });
+  console.log('merged OSM elements:', merged.length, '(' +
+    cats.map((c, i) => c + ':' + (results[i] ? results[i].length : 'X')).join(', ') + ')');
+
+  // expose what happened so loadWorld can tell partial success from total failure
+  window._osmFetchInfo = { failedCats, anyReal, total: cats.length };
+
+  // real city = we actually got buildings or roads back (even a few). Sparse suburbs are valid.
+  // Missing water/POIs just means a slightly incomplete but still REAL city — not a fallback.
+  return anyReal ? merged : null;
+}
+
+async function geocode(q) {
+  const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=' + encodeURIComponent(q));
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+async function fetchAreaName() {
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 10000);
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${CENTER.lat}&lon=${CENTER.lon}&zoom=15`, { signal: ctrl.signal });
+    const j = await r.json();
+    const a = j.address || {};
+    const local = a.suburb || a.neighbourhood || a.city_district || a.quarter || a.village || a.town || a.city || 'Unknown District';
+    const wide = [a.city || a.town || a.municipality, a.country].filter(Boolean).join(' · ').toUpperCase();
+    if (wide) $('areasmall').textContent = wide;
+    return local;
+  } catch (e) { return 'The Streets'; }
+}
+
+/* ---------------- THREE SETUP ---------------- */
+let scene, camera, renderer, clock;
+const worldGroup = new THREE.Group();
+
+function initThree() {
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, QUALITY.pixelRatio));
+  renderer.shadowMap.enabled = QUALITY.shadows;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  document.body.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  scene.add(worldGroup);
+  clock = new THREE.Clock();
+
+  camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.08, 2600);
+
+  // golden-hour sky dome
+  const skyCanvas = document.createElement('canvas');
+  skyCanvas.width = 16; skyCanvas.height = 256;
+  const sctx = skyCanvas.getContext('2d');
+  const g = sctx.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0.0, '#28437a');
+  g.addColorStop(0.42, '#6f86b8');
+  g.addColorStop(0.62, '#c99a6a');
+  g.addColorStop(0.75, '#e8b06b');
+  g.addColorStop(1.0, '#f2c98e');
+  sctx.fillStyle = g; sctx.fillRect(0, 0, 16, 256);
+  const skyTex = new THREE.CanvasTexture(skyCanvas);
+  skyTex.encoding = THREE.sRGBEncoding;
+  const sky = new THREE.Mesh(
+    new THREE.SphereGeometry(2200, 24, 16),
+    new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false })
+  );
+  scene.add(sky);
+  scene.fog = new THREE.Fog(0xcfa87a, 260, 1500);
+
+  const hemi = new THREE.HemisphereLight(0xbcc8e8, 0x5a4a38, 0.75);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffd9a0, 1.35);
+  sun.position.set(-420, 300, 220);
+  sun.castShadow = QUALITY.shadows;
+  sun.shadow.mapSize.set(2048, 2048);
+  const S = 380;
+  sun.shadow.camera.left = -S; sun.shadow.camera.right = S;
+  sun.shadow.camera.top = S; sun.shadow.camera.bottom = -S;
+  sun.shadow.camera.far = 1400;
+  sun.shadow.bias = -0.0004;
+  scene.add(sun);
+
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}
+
+/* ---------------- PROCEDURAL TEXTURES ---------------- */
+// Stockholm "stenstad" facade palette: ochre, umber, dusty rose, cream, sage
+const FACADE_COLORS = ['#c9a15f','#b3874f','#c98d6b','#d9c49a','#a8926b','#c0704f','#d6b08a','#9aa084','#c2b39a','#b89a76'];
+
+function facadeTexture(baseHex) {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = baseHex; x.fillRect(0, 0, 128, 128);
+  // subtle grime + plaster noise
+  for (let i = 0; i < 260; i++) {
+    x.fillStyle = `rgba(${rnd()<.5?0:255},${rnd()<.5?0:255},${rnd()<.5?0:220},${0.02 + rnd()*0.03})`;
+    x.fillRect(rnd()*128, rnd()*128, 2 + rnd()*5, 2 + rnd()*5);
+  }
+  // one floor per tile, 2 windows
+  const winW = 30, winH = 52, y0 = 38;
+  for (let k = 0; k < 2; k++) {
+    const wx = 22 + k * 56;
+    x.fillStyle = 'rgba(30,32,40,0.92)';
+    x.fillRect(wx - 3, y0 - 3, winW + 6, winH + 6);          // frame recess
+    const lit = rnd() < 0.28;
+    x.fillStyle = lit ? '#ffd98c' : '#20242e';
+    x.fillRect(wx, y0, winW, winH);
+    if (!lit) {                                               // sky reflection
+      const rg = x.createLinearGradient(wx, y0, wx + winW, y0 + winH);
+      rg.addColorStop(0, 'rgba(150,170,210,0.55)');
+      rg.addColorStop(1, 'rgba(60,70,95,0.15)');
+      x.fillStyle = rg; x.fillRect(wx, y0, winW, winH);
+    }
+    x.strokeStyle = 'rgba(15,15,20,0.85)'; x.lineWidth = 2;
+    x.strokeRect(wx, y0, winW, winH);
+    x.beginPath(); x.moveTo(wx + winW/2, y0); x.lineTo(wx + winW/2, y0 + winH);
+    x.moveTo(wx, y0 + winH/2); x.lineTo(wx + winW, y0 + winH/2); x.stroke();
+    // sill
+    x.fillStyle = 'rgba(255,255,255,0.22)'; x.fillRect(wx - 4, y0 + winH + 4, winW + 8, 4);
+  }
+  // floor line shadow
+  x.fillStyle = 'rgba(0,0,0,0.10)'; x.fillRect(0, 122, 128, 6);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = 4;
+  return t;
+}
+
+function asphaltTexture() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#33363b'; x.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 900; i++) {
+    const v = 40 + rnd() * 40;
+    x.fillStyle = `rgba(${v},${v},${v+4},${0.15 + rnd()*0.2})`;
+    x.fillRect(rnd()*128, rnd()*128, 1.5, 1.5);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(0.22, 0.22);
+  return t;
+}
+
+function waterTexture(rx, ry) {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#31536e'; x.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 240; i++) {
+    const w = 6 + rnd() * 22;
+    x.strokeStyle = `rgba(${170+rnd()*60},${200+rnd()*40},${230},${0.03 + rnd()*0.05})`;
+    x.lineWidth = 1 + rnd() * 1.5;
+    const yy = rnd() * 128, xx = rnd() * 128;
+    x.beginPath(); x.moveTo(xx, yy); x.quadraticCurveTo(xx + w/2, yy - 2 + rnd()*4, xx + w, yy); x.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx, ry);
+  waterTexList.push(t);
+  return t;
+}
+function makeWaterMats() {
+  return {
+    body: new THREE.MeshPhongMaterial({ color: 0x3a5d7a, specular: 0xaac4e0, shininess: 130,
+      map: waterTexture(1/26, 1/26), transparent: true, opacity: 0.94 }),
+    flow: new THREE.MeshPhongMaterial({ color: 0x3d6079, specular: 0xaac4e0, shininess: 100,
+      map: waterTexture(1, 1/16) })
+  };
+}
+
+function glassTowerTexture(tint) {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = tint; x.fillRect(0, 0, 128, 128);
+  // mullion grid — tight glazing bands
+  const cols = 8, rows = 8, cw = 128 / cols, rh = 128 / rows;
+  for (let r = 0; r < rows; r++) for (let cc = 0; cc < cols; cc++) {
+    const gx = cc * cw, gy = r * rh;
+    const g = x.createLinearGradient(gx, gy, gx + cw, gy + rh);
+    const lit = rnd() < 0.12;
+    if (lit) { g.addColorStop(0, '#ffe6a8'); g.addColorStop(1, '#d8b878'); }
+    else {
+      // sky reflection gradient, varied per pane
+      const a = 0.5 + rnd() * 0.4;
+      g.addColorStop(0, `rgba(150,180,215,${a})`);
+      g.addColorStop(0.6, `rgba(90,120,160,${a*0.7})`);
+      g.addColorStop(1, `rgba(40,60,90,${a*0.6})`);
+    }
+    x.fillStyle = g; x.fillRect(gx + 1, gy + 1, cw - 2, rh - 2);
+  }
+  // mullions
+  x.strokeStyle = 'rgba(30,35,42,0.85)'; x.lineWidth = 1.5;
+  for (let cc = 0; cc <= cols; cc++) { x.beginPath(); x.moveTo(cc*cw, 0); x.lineTo(cc*cw, 128); x.stroke(); }
+  for (let r = 0; r <= rows; r++) { x.beginPath(); x.moveTo(0, r*rh); x.lineTo(128, r*rh); x.stroke(); }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+  return t;
+}
+
+function brickTexture(base, mortar) {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = mortar; x.fillRect(0, 0, 128, 128);
+  const bw = 21, bh = 9;
+  for (let row = 0, y = 0; y < 128; row++, y += bh) {
+    const off = (row % 2) * (bw / 2);
+    for (let bx = -bw; bx < 128; bx += bw) {
+      const v = -14 + rnd() * 28;
+      const col = base.match(/\w\w/g).map(h => Math.max(0, Math.min(255, parseInt(h,16)+v)));
+      x.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+      x.fillRect(bx + off + 1, y + 1, bw - 2, bh - 2);
+    }
+  }
+  // windows: two rows of tall sashes
+  for (let k = 0; k < 2; k++) {
+    const wx = 26 + k * 52, wy = 30, ww = 26, wh = 46;
+    x.fillStyle = 'rgba(25,28,36,0.9)'; x.fillRect(wx-3, wy-3, ww+6, wh+6);
+    x.fillStyle = rnd() < 0.25 ? '#ffd98c' : '#3a4a5e'; x.fillRect(wx, wy, ww, wh);
+    x.strokeStyle = '#e8e2d4'; x.lineWidth = 2; x.strokeRect(wx-3, wy-3, ww+6, wh+6);
+    x.beginPath(); x.moveTo(wx+ww/2, wy); x.lineTo(wx+ww/2, wy+wh); x.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+  return t;
+}
+
+function cobbleTexture() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#6d6a66'; x.fillRect(0, 0, 128, 128);
+  for (let ry = 0; ry < 8; ry++) for (let rx = 0; rx < 8; rx++) {
+    const v = 95 + rnd() * 40;
+    x.fillStyle = `rgb(${v},${v-3},${v-8})`;
+    x.fillRect(rx*16 + 1 + (ry%2)*4, ry*16 + 1, 13, 13);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(0.5, 0.5);
+  return t;
+}
+/* ---------------- WORLD BUILD ---------------- */
+const buildings = [];        // { poly:[{x,z}], aabb:{minX..}, mesh, h }
+const roadPaths = [];        // { pts:[{x,z}], type, name, width }
+const raycastTargets = [];   // meshes bullets can hit
+const treeSpots = [];
+const shops = [];            // { x, z, name, type }
+const waterPolys = [];       // { outer, holes, aabb, level } — swim/no-walk zones
+const wayWater = [], coastSegs = [], waterRels = [];
+const waterTexList = [];
+let _wMats = null;
+let signCount = 0, namedCount = 0, dataLive = false;
+let minimapStatic = null;
+
+function longestEdge(poly) {
+  let best = null;
+  for (let i = 0; i < poly.length; i++) {
+    const p1 = poly[i], p2 = poly[(i+1) % poly.length];
+    const dx = p2.x - p1.x, dz = p2.z - p1.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 6) continue;
+    if (!best || len > best.edgeLen) {
+      let nx = -dz/len, nz = dx/len;
+      const qx = (p1.x+p2.x)/2, qz = (p1.z+p2.z)/2;
+      if (pointInPoly(qx + nx*0.6, qz + nz*0.6, poly)) { nx = -nx; nz = -nz; }
+      best = { qx, qz, nx, nz, edgeLen: len };
+    }
+  }
+  return best;
+}
+
+const SIGN_AMENITY = /^(cafe|restaurant|bar|pub|fast_food|pharmacy|bank|cinema|theatre|nightclub|ice_cream|library|dentist|doctors|clinic|veterinary|bureau_de_change|post_office|driving_school|language_school|music_school|community_centre)$/;
+const AMENITY_SKIP = /parking|bench|waste|toilets|recycling|bicycle|vending|shelter|drinking_water|fountain|post_box|telephone|charging|^atm$|grave|hunting|loading|motorcycle|taxi|bus_st|ferry|clock|photo_booth|smoking|shower|water_point|compressed_air|public_bookcase|luggage|ticket_validator|parcel_locker/;
+const LEISURE_SKIP = /park|garden|playground|pitch|track|common|nature_reserve|dog_park|swimming_area|marina|slipway|firepit|picnic|outdoor_seating|bleachers/;
+function poiType(tags) {
+  if (!tags) return null;
+  if (tags.shop) return tags.shop;
+  if (tags.amenity && (SIGN_AMENITY.test(tags.amenity) ||
+      (tags.name && !AMENITY_SKIP.test(tags.amenity)))) return tags.amenity;
+  if (tags.tourism && (/^(hotel|hostel|museum|gallery)$/.test(tags.tourism) ||
+      (tags.name && tags.tourism !== 'information'))) return tags.tourism;
+  if (tags.craft) return tags.craft;
+  if (tags.leisure === 'fitness_centre') return 'gym';
+  if (tags.leisure && tags.name && !LEISURE_SKIP.test(tags.leisure)) return tags.leisure;
+  if (tags.healthcare && tags.name) return tags.healthcare;
+  if (tags.office && tags.name) return 'office';
+  return null;
+}
+function poiName(tags) { return tags.name || tags.brand || tags.operator || null; }
+
+/* ---------------- SHOP SIGNS ---------------- */
+const GENERIC_NAME = {
+  cafe:'KAFÉ', restaurant:'RESTAURANG', bar:'BAR', pub:'PUB', fast_food:'GATUKÖK',
+  pharmacy:'APOTEK', bank:'BANK', cinema:'BIO', theatre:'TEATER', nightclub:'KLUBB',
+  ice_cream:'GLASS', hairdresser:'FRISÖR', bakery:'BAGERI', convenience:'LIVS',
+  supermarket:'LIVSMEDEL', clothes:'MODE', shoes:'SKOR', florist:'BLOMMOR',
+  books:'ANTIKVARIAT', kiosk:'PRESS & TOBAK', tobacco:'TOBAK', alcohol:'VIN & SPRIT',
+  jewelry:'GULDSMED', optician:'OPTIK', electronics:'ELEKTRONIK', furniture:'MÖBLER',
+  greengrocer:'FRUKT & GRÖNT', butcher:'KÖTT & CHARK', laundry:'KEMTVÄTT',
+  beauty:'SALONG', bicycle:'CYKEL', art:'GALLERI', antiques:'ANTIKT', deli:'DELIKATESSER',
+  tattoo:'TATUERING', gift:'PRESENTER', toys:'LEKSAKER', pet:'DJURAFFÄR', wine:'VINHANDEL',
+  doctors:'LÄKARMOTTAGNING', clinic:'VÅRDCENTRAL', dentist:'TANDLÄKARE', veterinary:'VETERINÄR',
+  post_office:'POSTOMBUD', driving_school:'TRAFIKSKOLA', language_school:'SPRÅKSKOLA', music_school:'MUSIKSKOLA',
+  community_centre:'FÖRENINGSLOKAL', library:'BIBLIOTEK', hotel:'HOTELL', hostel:'VANDRARHEM',
+  museum:'MUSEUM', gallery:'GALLERI', gym:'GYM', office:'KONTOR', bureau_de_change:'VÄXELKONTOR',
+  school:'SKOLA', kindergarten:'FÖRSKOLA', university:'UNIVERSITET', college:'HÖGSKOLA',
+  sports_centre:'SPORTHALL', dance:'DANSSTUDIO', arts_centre:'KULTURHUS', attraction:'SEVÄRDHET'
+};
+const SIGN_STYLE = [   // [match, bg, fg]
+  [/cafe|ice_cream|bakery|deli/,        '#d99a34', '#241605'],
+  [/restaurant|fast_food|pizzeria/,     '#a52c22', '#f5e8d8'],
+  [/bar|pub|nightclub|alcohol|wine/,    '#233d5e', '#e8d9a8'],
+  [/pharmacy|chemist|optician/,         '#1f6b45', '#eef7ee'],
+  [/bank/,                              '#1c2733', '#c9b47a'],
+  [/hairdresser|beauty|tattoo/,         '#5e3a70', '#f2e8f7'],
+  [/florist|greengrocer|pet/,           '#3d6b2a', '#f0f5e6'],
+  [/books|antiques|art|gift/,           '#6b4a2a', '#f2e6d0'],
+  [/building/,                          '#2a2620', '#e8d9a8'],
+  [/hotel|hostel/,                      '#3a2a4e', '#f0e6c8'],
+  [/museum|gallery|library|theatre/,    '#4a3826', '#f2ead6'],
+  [/gym|fitness/,                       '#22343a', '#c8e8dd']
+];
+const SIGN_FALLBACK_BG = ['#1f5f5b','#84512a','#4a2a5e','#2e4a63','#6e352a'];
+
+function signStyle(type, idx) {
+  let bg = SIGN_FALLBACK_BG[idx % SIGN_FALLBACK_BG.length], fg = '#f2ede0';
+  for (const [re, b, f] of SIGN_STYLE) if (re.test(type)) { bg = b; fg = f; break; }
+  return { bg, fg };
+}
+
+const signTexCache = new Map();
+function signTexture(text, type, idx) {
+  const key = text + '|' + type;
+  if (signTexCache.has(key)) return signTexCache.get(key);
+  const { bg, fg } = signStyle(type, idx);
+  const c = document.createElement('canvas'); c.width = 512; c.height = 96;
+  const x = c.getContext('2d');
+  x.fillStyle = bg; x.fillRect(0, 0, 512, 96);
+  // top "downlight" sheen + vignette so it reads as illuminated
+  const g = x.createLinearGradient(0, 0, 0, 96);
+  g.addColorStop(0, 'rgba(255,255,240,0.30)');
+  g.addColorStop(0.35, 'rgba(255,255,240,0.06)');
+  g.addColorStop(1, 'rgba(0,0,0,0.22)');
+  x.fillStyle = g; x.fillRect(0, 0, 512, 96);
+  x.strokeStyle = 'rgba(255,245,220,0.75)'; x.lineWidth = 5;
+  x.strokeRect(6, 6, 500, 84);
+  x.fillStyle = fg; x.textAlign = 'center'; x.textBaseline = 'middle';
+  let fs = 52;
+  do { x.font = `bold ${fs}px Georgia, serif`; fs -= 3; }
+  while (x.measureText(text).width > 460 && fs > 18);
+  x.shadowColor = 'rgba(0,0,0,0.45)'; x.shadowBlur = 6; x.shadowOffsetY = 2;
+  x.fillText(text, 256, 51);
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+  signTexCache.set(key, t);
+  return t;
+}
+
+const doorTexCache = new Map();
+function doorTexture(paint) {
+  if (doorTexCache.has(paint)) return doorTexCache.get(paint);
+  const c = document.createElement('canvas'); c.width = 128; c.height = 256;
+  const x = c.getContext('2d');
+  // stone surround
+  x.fillStyle = '#4a453d'; x.fillRect(0, 0, 128, 256);
+  // painted frame in the sign's colour
+  x.fillStyle = paint; x.fillRect(8, 8, 112, 248);
+  x.fillStyle = 'rgba(0,0,0,0.32)'; x.fillRect(8, 8, 112, 248);
+  // door leaf
+  x.fillStyle = paint; x.fillRect(18, 18, 92, 238);
+  const sheen = x.createLinearGradient(18, 0, 110, 0);
+  sheen.addColorStop(0, 'rgba(255,255,255,0.14)'); sheen.addColorStop(0.5, 'rgba(0,0,0,0.05)'); sheen.addColorStop(1, 'rgba(0,0,0,0.28)');
+  x.fillStyle = sheen; x.fillRect(18, 18, 92, 238);
+  // glass upper half, warm light inside
+  for (let gy = 0; gy < 2; gy++) for (let gx = 0; gx < 2; gx++) {
+    const wx = 26 + gx * 42, wy = 30 + gy * 52;
+    x.fillStyle = '#12141a'; x.fillRect(wx - 3, wy - 3, 40, 48);
+    const gl = x.createLinearGradient(wx, wy, wx + 34, wy + 42);
+    gl.addColorStop(0, '#ffd98c'); gl.addColorStop(1, '#c98d4a');
+    x.fillStyle = gl; x.fillRect(wx, wy, 34, 42);
+    x.fillStyle = 'rgba(255,255,255,0.35)';
+    x.beginPath(); x.moveTo(wx, wy + 42); x.lineTo(wx + 14, wy); x.lineTo(wx + 22, wy); x.lineTo(wx + 6, wy + 42); x.fill();
+  }
+  // lower panels
+  x.strokeStyle = 'rgba(0,0,0,0.45)'; x.lineWidth = 3;
+  x.strokeRect(28, 148, 72, 42); x.strokeRect(28, 200, 72, 42);
+  // handle + kick plate + threshold
+  x.fillStyle = '#d8c88f'; x.fillRect(96, 128, 6, 22);
+  x.fillStyle = 'rgba(200,195,180,0.5)'; x.fillRect(20, 236, 88, 12);
+  x.fillStyle = '#2a2724'; x.fillRect(0, 250, 128, 6);
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+  doorTexCache.set(paint, t);
+  return t;
+}
+
+function addDoor(w, yaw, paint, wide) {
+  const dw = wide || 1.5, dh = dw * 1.75;
+  const e = elevAt(w.qx, w.qz);
+  const door = new THREE.Mesh(
+    new THREE.PlaneGeometry(dw, dh),
+    new THREE.MeshLambertMaterial({ map: doorTexture(paint) })
+  );
+  door.position.set(w.qx + w.nx * 0.09, e + dh / 2 + 0.02, w.qz + w.nz * 0.09);
+  door.rotation.y = yaw;
+  worldGroup.add(door);
+  // stone step
+  const step = new THREE.Mesh(
+    new THREE.BoxGeometry(dw + 0.5, 0.14, 0.55),
+    new THREE.MeshLambertMaterial({ color: 0x8d8578 })
+  );
+  step.position.set(w.qx + w.nx * 0.32, e + 0.07, w.qz + w.nz * 0.32);
+  step.rotation.y = yaw;
+  worldGroup.add(step);
+}
+
+function nearestWall(x, z, maxD) {
+  let best = null;
+  for (const b of buildings) {
+    const a = b.aabb;
+    if (x < a.minX - maxD || x > a.maxX + maxD || z < a.minZ - maxD || z > a.maxZ + maxD) continue;
+    const poly = b.poly;
+    for (let i = 0; i < poly.length; i++) {
+      const p1 = poly[i], p2 = poly[(i+1) % poly.length];
+      const dx = p2.x - p1.x, dz = p2.z - p1.z;
+      const len2 = dx*dx + dz*dz;
+      if (len2 < 16) continue;                                // skip walls under 4 m
+      const t = Math.max(0.18, Math.min(0.82, ((x-p1.x)*dx + (z-p1.z)*dz) / len2));
+      const qx = p1.x + dx*t, qz = p1.z + dz*t;
+      const d = Math.hypot(x - qx, z - qz);
+      if (!best || d < best.d) {
+        let nx = -dz, nz = dx;
+        const nl = Math.hypot(nx, nz); nx /= nl; nz /= nl;
+        if (pointInPoly(qx + nx*0.6, qz + nz*0.6, poly)) { nx = -nx; nz = -nz; }
+        best = { d, qx, qz, nx, nz, edgeLen: Math.sqrt(len2), h: b.h };
+      }
+    }
+  }
+  return best && best.d <= maxD ? best : null;
+}
+
+function addWaterPoly(outer, holes, shorePts) {
+  if (!outer || outer.length < 3) return;
+  // never flood the spawn point (bad closure heuristics get discarded here)
+  if (pointInPoly(0, 0, outer) && !(holes || []).some(h => pointInPoly(0, 0, h))) return;
+  let lvl = 1e9;
+  for (const p of (shorePts && shorePts.length ? shorePts : outer)) lvl = Math.min(lvl, elevAt(p.x, p.z));
+  lvl += 0.22;
+  try {
+    const shape = new THREE.Shape(outer.map(p => new THREE.Vector2(p.x, -p.z)));
+    for (const h of (holes || [])) if (h.length >= 3)
+      shape.holes.push(new THREE.Path(h.map(p => new THREE.Vector2(p.x, -p.z))));
+    const g = new THREE.ShapeGeometry(shape); g.rotateX(-Math.PI / 2);
+    const m = new THREE.Mesh(g, _wMats.body);
+    m.position.y = lvl;
+    worldGroup.add(m);
+    let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9;
+    for (const p of outer){minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z);}
+    waterPolys.push({ outer, holes: holes || [], aabb:{minX,maxX,minZ,maxZ}, level: lvl });
+  } catch (e) { console.warn('water poly skipped', e); }
+}
+
+let _roadSample = null;
+function roadSample() {       // build once: a bounded set of road vertices to test against
+  if (_roadSample) return _roadSample;
+  _roadSample = [];
+  for (const r of roadPaths) for (let i = 0; i < r.pts.length; i += 4) _roadSample.push(r.pts[i]);
+  if (_roadSample.length > 1200) {                        // decimate for huge cities
+    const step = Math.ceil(_roadSample.length / 1200);
+    _roadSample = _roadSample.filter((_, i) => i % step === 0);
+  }
+  return _roadSample;
+}
+function landScore(poly) {   // fraction of sampled road vertices a polygon would drown
+  const S = roadSample();
+  if (!S.length) return 0;
+  let inside = 0;
+  for (const p of S) if (pointInPoly(p.x, p.z, poly)) inside++;
+  return inside / S.length;
+}
+function pickClosure(chain, waterPt) {
+  const cands = [closeChain(chain, true), closeChain(chain, false)]
+    .filter(poly => landScore(poly) < 0.06);            // real water holds few road points (bridges only)
+  if (!cands.length) return null;
+  for (const poly of cands) if (pointInPoly(waterPt.x, waterPt.z, poly)) return poly;
+  return cands.length === 1 ? cands[0] : null;          // ambiguous → better no sea than a flooded town
+}
+function chainSidePoint(chain, sign) {
+  const i = Math.floor(chain.length / 2);
+  const a = chain[Math.max(0, i-1)], b = chain[Math.min(chain.length-1, i+1)];
+  let rx = -(b.z - a.z), rz = (b.x - a.x);
+  const rl = Math.hypot(rx, rz) || 1;
+  return { x: chain[i].x + rx/rl*18*sign, z: chain[i].z + rz/rl*18*sign };
+}
+
+function buildWater() {
+  // simple closed way-mapped ponds, docks, riverbanks
+  for (const ring of wayWater) addWaterPoly(ring, [], ring);
+
+  // multipolygon lakes / rivers (possibly clipped at the map edge)
+  for (const rel of waterRels) {
+    const outSegs = [], inSegs = [];
+    for (const m of (rel.members || [])) {
+      if (m.type !== 'way' || !m.geometry || m.geometry.length < 2) continue;
+      ((m.role || 'outer') === 'inner' ? inSegs : outSegs)
+        .push(m.geometry.map(g => ll2xz(g.lat, g.lon)));
+    }
+    const outs = joinSegments(outSegs, 8), holes = joinSegments(inSegs, 8).closed;
+    for (const ring of outs.closed)
+      addWaterPoly(ring, holes.filter(h => pointInPoly(h[0].x, h[0].z, ring)), ring);
+    for (const chain of outs.open) {
+      if (!nearBorder(chain[0]) || !nearBorder(chain[chain.length - 1])) continue;
+      // the water side is the lower-elevation side of the shoreline
+      const q1 = chainSidePoint(chain, 1), q2 = chainSidePoint(chain, -1);
+      const waterPt = elevAt(q1.x, q1.z) <= elevAt(q2.x, q2.z) ? q1 : q2;
+      const pick = pickClosure(chain, waterPt);
+      if (pick) addWaterPoly(pick, holes.filter(h => pointInPoly(h[0].x, h[0].z, pick)), chain);
+    }
+  }
+
+  // coastline: closed rings are islands (land); open border chains become the sea
+  const cj = joinSegments(coastSegs, 8);
+  const islands = cj.closed;
+  for (const chain of cj.open) {
+    if (!nearBorder(chain[0]) || !nearBorder(chain[chain.length - 1])) continue;
+    // OSM convention: water lies on the RIGHT of coastline direction
+    const pick = pickClosure(chain, chainSidePoint(chain, 1));
+    if (pick) addWaterPoly(pick, islands.filter(h => pointInPoly(h[0].x, h[0].z, pick)), chain);
+  }
+  if (waterPolys.length) console.log('water bodies:', waterPolys.length);
+}
+
+function insideBuilding(x, z) {
+  for (const b of buildings) {
+    const a = b.aabb;
+    if (x < a.minX || x > a.maxX || z < a.minZ || z > a.maxZ) continue;
+    if (pointInPoly(x, z, b.poly)) return true;
+  }
+  return false;
+}
+
+function waterAt(x, z) {
+  for (const w of waterPolys) {
+    if (x < w.aabb.minX || x > w.aabb.maxX || z < w.aabb.minZ || z > w.aabb.maxZ) continue;
+    if (!pointInPoly(x, z, w.outer)) continue;
+    let hole = false;
+    for (const h of w.holes) if (pointInPoly(x, z, h)) { hole = true; break; }
+    if (!hole) return w.level;
+  }
+  return null;
+}
+
+function buildSigns() {
+  // named buildings (churches, schools, institutions) get large facade name signs — real data
+  for (const b of buildings) {
+    if (!b.name || signCount >= 90) continue;
+    const e0 = longestEdge(b.poly);
+    if (!e0) continue;
+    const label = b.name.toUpperCase().slice(0, 30);
+    const tex = signTexture(label, 'building', 4);
+    const wide = Math.min(Math.max(3, label.length * 0.34), e0.edgeLen * 0.8, 11);
+    const panel = new THREE.Mesh(
+      new THREE.PlaneGeometry(wide, Math.max(0.8, wide * 0.14)),
+      new THREE.MeshBasicMaterial({ map: tex })
+    );
+    panel.position.set(e0.qx + e0.nx * 0.16, elevAt(e0.qx, e0.qz) + Math.min(b.h - 1.2, 6.5), e0.qz + e0.nz * 0.16);
+    panel.rotation.y = Math.atan2(e0.nx, e0.nz);
+    worldGroup.add(panel);
+    signCount++;
+    addDoor(e0, Math.atan2(e0.nx, e0.nz), signStyle('building', 0).bg, 2.3);   // grand entrance
+  }
+
+  // offline fallback only: an honest placeholder high street, clearly announced elsewhere
+  if (!dataLive && shops.length < 6 && buildings.length) {
+    const types = Object.keys(GENERIC_NAME);
+    for (let i = 0; i < 46; i++) {
+      const b = buildings[Math.floor(rnd() * buildings.length)];
+      const e0 = Math.floor(rnd() * b.poly.length);
+      const p1 = b.poly[e0], p2 = b.poly[(e0+1) % b.poly.length];
+      shops.push({ x: (p1.x+p2.x)/2, z: (p1.z+p2.z)/2, name: null,
+        type: types[Math.floor(rnd() * types.length)] });
+    }
+  }
+
+  // REAL NAMES FIRST: named businesses always get a sign before unnamed ones
+  shops.sort((a, b) => (b.name ? 1 : 0) - (a.name ? 1 : 0));
+
+  const usedWalls = [];
+  let idx = 0;
+  for (const s of shops) {
+    if (signCount >= (IS_MOBILE ? 220 : 420)) break;
+    const w = nearestWall(s.x, s.z, 26);
+    if (!w) continue;
+    // businesses sharing an address stack their signs upward instead of being dropped
+    const stack = usedWalls.filter(u => Math.hypot(u.x - w.qx, u.z - w.qz) < 3.2).length;
+    if (stack >= 4) continue;
+    usedWalls.push({ x: w.qx, z: w.qz });
+
+    let label = (s.name || GENERIC_NAME[s.type] || s.type.replace(/_/g, ' ').toUpperCase());
+    if (s.name) namedCount++;
+    label = label.toUpperCase();
+    if (label.length > 24) label = label.slice(0, 23) + '…';
+
+    const tex = signTexture(label, s.type, idx++);
+    const wide = Math.min(Math.max(1.8, label.length * 0.26), w.edgeLen * 0.72, 6.5);
+    const panel = new THREE.Mesh(
+      new THREE.PlaneGeometry(wide, Math.max(0.62, wide * 0.17)),
+      new THREE.MeshBasicMaterial({ map: tex })
+    );
+    const yaw = Math.atan2(w.nx, w.nz);
+    const wallE = elevAt(w.qx, w.qz);
+    const signY = wallE + Math.min(3.3, Math.max(2.6, w.h * 0.18)) + stack * 0.95;
+    panel.position.set(w.qx + w.nx * 0.16, signY, w.qz + w.nz * 0.16);
+    panel.rotation.y = yaw;
+    worldGroup.add(panel);
+    signCount++;
+    // storefront door under the lowest sign at this address
+    if (stack === 0) addDoor(w, yaw, signStyle(s.type, idx - 1).bg);
+
+    // hanging blade sign for cafés / bars / restaurants
+    if (/cafe|bar|pub|restaurant|nightclub|ice_cream|bakery/.test(s.type) && rnd() < 0.6) {
+      const bt = signTexture(label.slice(0, 1), s.type + '_blade', idx);
+      const blade = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.66, 0.66),
+        new THREE.MeshBasicMaterial({ map: bt, side: THREE.DoubleSide })
+      );
+      blade.position.set(w.qx + w.nx * 0.55, signY + 0.9, w.qz + w.nz * 0.55);
+      blade.rotation.y = yaw + Math.PI / 2;
+      const bracket = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 0.05, 0.9),
+        new THREE.MeshLambertMaterial({ color: 0x1a1c20 })
+      );
+      bracket.position.set(w.qx + w.nx * 0.45, signY + 1.32, w.qz + w.nz * 0.45);
+      bracket.rotation.y = yaw;
+      worldGroup.add(blade, bracket);
+    }
+  }
+  console.log('signs:', signCount, 'from', shops.length, 'shops');
+}
+
+
+const ROAD_W = { motorway: 16, trunk: 14, primary: 13, secondary: 11, tertiary: 9,
+  residential: 7.5, unclassified: 7, living_street: 6.5, service: 5, pedestrian: 6,
+  footway: 2.6, path: 2.2, cycleway: 2.6, steps: 2.4 };
+
+function polyArea(p) {
+  let a = 0;
+  for (let i = 0; i < p.length; i++) { const j = (i+1)%p.length; a += p[i].x*p[j].z - p[j].x*p[i].z; }
+  return a / 2;
+}
+function pointInPoly(px, pz, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, zi = poly[i].z, xj = poly[j].x, zj = poly[j].z;
+    if (((zi > pz) !== (zj > pz)) && (px < (xj - xi) * (pz - zi) / (zj - zi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+/* clean a footprint ring: drop closing duplicate + consecutive near-duplicates */
+function cleanRing(pts) {
+  const out = [];
+  for (const p of pts) {
+    const last = out[out.length - 1];
+    if (!last || Math.hypot(p.x - last.x, p.z - last.z) > 0.08) out.push(p);
+  }
+  while (out.length > 1 && Math.hypot(out[0].x - out[out.length-1].x, out[0].z - out[out.length-1].z) < 0.08) out.pop();
+  return out;
+}
+
+/* join arbitrary polyline segments into closed rings and leftover open chains */
+function joinSegments(segsIn, tol) {
+  const near = (a, b) => Math.hypot(a.x - b.x, a.z - b.z) < tol;
+  const segs = segsIn.slice();
+  const closed = [], open = [];
+  while (segs.length) {
+    let ring = segs.pop();
+    let guard = 500;
+    while (!near(ring[0], ring[ring.length - 1]) && guard-- > 0) {
+      const end = ring[ring.length - 1];
+      let found = -1, rev = false;
+      for (let i = 0; i < segs.length; i++) {
+        if (near(segs[i][0], end)) { found = i; break; }
+        if (near(segs[i][segs[i].length - 1], end)) { found = i; rev = true; break; }
+      }
+      if (found >= 0) {
+        let sg = segs.splice(found, 1)[0];
+        if (rev) sg = sg.slice().reverse();
+        ring = ring.concat(sg.slice(1));
+        continue;
+      }
+      // try extending backwards from the start
+      const st = ring[0]; found = -1;
+      for (let i = 0; i < segs.length; i++) {
+        if (near(segs[i][segs[i].length - 1], st)) { found = i; break; }
+        if (near(segs[i][0], st)) { found = i; rev = true; break; }
+      }
+      if (found < 0) break;
+      let sg = segs.splice(found, 1)[0];
+      if (rev) sg = sg.slice().reverse();
+      ring = sg.slice(0, -1).concat(ring);
+    }
+    const c = cleanRing(ring);
+    if (c.length >= 3 && near(ring[0], ring[ring.length - 1])) closed.push(c);
+    else if (c.length >= 2) open.push(cleanRing(ring.concat()));
+  }
+  return { closed, open };
+}
+
+/* map-edge border walk for closing sea / clipped-lake chains */
+const BORDER = RADIUS_M + 4;
+function borderPoint(t) {
+  const e = ((Math.floor(t) % 4) + 4) % 4, f = t - Math.floor(t), B = BORDER;
+  if (e === 0) return { x: -B + 2*B*f, z: -B };
+  if (e === 1) return { x:  B, z: -B + 2*B*f };
+  if (e === 2) return { x:  B - 2*B*f, z:  B };
+  return { x: -B, z:  B - 2*B*f };
+}
+function borderParam(p) {
+  const B = BORDER;
+  const dT = Math.abs(p.z + B), dR = Math.abs(p.x - B), dB = Math.abs(p.z - B), dL = Math.abs(p.x + B);
+  const m = Math.min(dT, dR, dB, dL);
+  if (m === dT) return 0 + Math.max(0, Math.min(1, (p.x + B) / (2*B)));
+  if (m === dR) return 1 + Math.max(0, Math.min(1, (p.z + B) / (2*B)));
+  if (m === dB) return 2 + Math.max(0, Math.min(1, (B - p.x) / (2*B)));
+  return 3 + Math.max(0, Math.min(1, (B - p.z) / (2*B)));
+}
+function nearBorder(p) {
+  return Math.min(Math.abs(p.x - BORDER), Math.abs(p.x + BORDER),
+                  Math.abs(p.z - BORDER), Math.abs(p.z + BORDER)) < 60;
+}
+function closeChain(chain, cw) {
+  let t0 = borderParam(chain[chain.length - 1]), t1 = borderParam(chain[0]);
+  const pts = chain.slice();
+  if (cw) { if (t1 <= t0) t1 += 4; for (let t = Math.ceil(t0); t < t1; t++) pts.push(borderPoint(t)); }
+  else    { if (t1 >= t0) t1 -= 4; for (let t = Math.floor(t0); t > t1; t--) pts.push(borderPoint(t)); }
+  return pts;
+}
+
+/* stitch relation member ways into closed rings (multipolygon outers/inners) */
+function stitchRings(members, role) {
+  const near = (a, b) => Math.hypot(a.x - b.x, a.z - b.z) < 0.5;
+  const segs = [];
+  for (const m of members) {
+    if (m.type !== 'way' || !m.geometry || m.geometry.length < 2) continue;
+    if ((m.role || 'outer') !== role) continue;
+    segs.push(m.geometry.map(g => ll2xz(g.lat, g.lon)));
+  }
+  const rings = [];
+  while (segs.length) {
+    let ring = segs.pop();
+    let guard = 300;
+    while (!near(ring[0], ring[ring.length-1]) && guard-- > 0) {
+      const end = ring[ring.length-1];
+      let found = -1, rev = false;
+      for (let i = 0; i < segs.length; i++) {
+        if (near(segs[i][0], end)) { found = i; break; }
+        if (near(segs[i][segs[i].length-1], end)) { found = i; rev = true; break; }
+      }
+      if (found < 0) break;
+      let s = segs.splice(found, 1)[0];
+      if (rev) s = s.slice().reverse();
+      ring = ring.concat(s.slice(1));
+    }
+    if (near(ring[0], ring[ring.length-1])) {
+      const cleaned = cleanRing(ring);
+      if (cleaned.length >= 3) rings.push(cleaned);
+    }
+  }
+  return rings;
+}
+
+/* ---------------- BUILDING ARCHETYPES ---------------- */
+// classify each footprint from OSM tags + size + height into a visual archetype
+const TOWER_TAGS = /^(commercial|office|hotel|tower|skyscraper)$/;
+const FLATS_TAGS = /^(apartments|residential|dormitory)$/;
+const HOUSE_TAGS = /^(house|semidetached_house|terrace|townhouse|bungalow)$/;
+const VILLA_TAGS = /^(detached|villa|cabin|farm|cottage)$/;
+const CIVIC_TAGS = /^(church|cathedral|chapel|mosque|synagogue|temple|civic|public|government|university|college|hospital|train_station|museum)$/;
+const INDUS_TAGS = /^(industrial|warehouse|factory|manufacture|hangar)$/;
+const OUT_TAGS   = /^(garage|garages|shed|roof|kiosk|hut|carport|greenhouse|conservatory|service)$/;
+
+function classifyBuilding(tags, area, levels, h) {
+  const b = tags.building || 'yes';
+  if (CIVIC_TAGS.test(b) || tags.amenity === 'place_of_worship') return 'civic';
+  if (OUT_TAGS.test(b))   return 'outbuilding';
+  if (INDUS_TAGS.test(b)) return 'industrial';
+  if (TOWER_TAGS.test(b) || levels >= 12 || h >= 40) return 'tower';
+  if (VILLA_TAGS.test(b)) return 'villa';
+  if (HOUSE_TAGS.test(b)) return 'townhouse';
+  // 'residential'/'apartments' — infer house vs block from size, since 'residential'
+  // is used for both detached houses and apartment blocks
+  if (FLATS_TAGS.test(b)) {
+    if (b !== 'apartments' && b !== 'dormitory') {   // generic 'residential'
+      if (area < 160 && levels <= 3) return 'villa';
+      if (area < 340 && levels <= 3) return 'townhouse';
+    }
+    return 'flats';
+  }
+  // untyped 'yes' — infer from footprint + height
+  if (levels >= 12 || h >= 40) return 'tower';
+  if (area < 130 && levels <= 3) return 'villa';
+  if (area < 320 && levels <= 3) return 'townhouse';
+  if (levels >= 5) return 'flats';
+  return 'flats';
+}
+
+function buildingHeight(tags, nB) {
+  const b = tags.building || 'yes';
+  let lv = tags['building:levels'] ? parseFloat(tags['building:levels']) : 0;
+  let h = 0;
+  if (tags.height) h = parseFloat(tags.height) || 0;
+  else if (lv) h = lv * 3.3 + 1.2;
+  if (!h) {
+    if (TOWER_TAGS.test(b))      h = 45 + rnd() * 55;
+    else if (VILLA_TAGS.test(b)) h = 6 + rnd() * 2.5;
+    else if (HOUSE_TAGS.test(b)) h = 7 + rnd() * 3;
+    else if (INDUS_TAGS.test(b)) h = 8 + rnd() * 5;
+    else if (OUT_TAGS.test(b))   h = 3 + rnd() * 1.5;
+    else h = 16 + rnd() * 9;                              // stenstad default 5–7 floors
+  }
+  if (CIVIC_TAGS.test(b) || tags.amenity === 'place_of_worship') h = Math.max(h, 24);
+  if (OUT_TAGS.test(b)) h = Math.min(h, 4.5);
+  return h;
+}
+
+let _bMats = null;   // set in buildWorld
+function pickMat(list, nB) { return list[(nB * 7 + Math.floor(rnd()*list.length)) % list.length]; }
+
+function addPitchedRoof(poly, baseY, wallTop, roofMat) {
+  // simple gable roof spanning the footprint's bounding box, ridge along the long axis
+  let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9;
+  for (const p of poly) { minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z); }
+  const w = maxX-minX, d = maxZ-minZ, cx=(minX+maxX)/2, cz=(minZ+maxZ)/2;
+  const alongX = w >= d;
+  const rise = Math.min(Math.min(w,d) * 0.42, 3.8);
+  const T = wallTop;
+  // corners + ridge endpoints
+  const A=[minX,T,minZ], B=[maxX,T,minZ], C=[maxX,T,maxZ], D=[minX,T,maxZ];
+  const R1 = alongX ? [minX,T+rise,cz] : [cx,T+rise,minZ];
+  const R2 = alongX ? [maxX,T+rise,cz] : [cx,T+rise,maxZ];
+  const pos = [];
+  const tri = (p,q,r) => pos.push(p[0],p[1],p[2], q[0],q[1],q[2], r[0],r[1],r[2]);
+  if (alongX) {
+    tri(A,B,R2); tri(A,R2,R1);      // front slope
+    tri(D,R1,R2); tri(D,R2,C);      // back slope
+    tri(A,R1,D);                    // west gable
+    tri(B,C,R2);                    // east gable
+  } else {
+    tri(A,B,R1); tri(B,R2,R1);      // slope 1
+    tri(D,R1,R2); tri(D,R2,C);      // slope 2
+    tri(A,R1,D);                    // gable
+    tri(B,C,R2);                    // gable
+  }
+  const rg = new THREE.BufferGeometry();
+  rg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  rg.computeVertexNormals();
+  const roof = new THREE.Mesh(rg, roofMat);
+  roof.castShadow = QUALITY.shadows; roof.receiveShadow = QUALITY.shadows;
+  worldGroup.add(roof);
+  raycastTargets.push(roof);
+}
+
+function addRoofDetail(poly, y, kind) {
+  // small rooftop clutter for flat-roofed blocks/towers so tops aren't bare
+  let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9;
+  for (const p of poly) { minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z); }
+  const cx=(minX+maxX)/2, cz=(minZ+maxZ)/2;
+  const mat = new THREE.MeshLambertMaterial({ color: 0x4a4d52 });
+  if (kind === 'tower') {
+    // rooftop mechanical box + parapet cap
+    const box = new THREE.Mesh(new THREE.BoxGeometry(Math.min(6,(maxX-minX)*0.4), 2.4, Math.min(6,(maxZ-minZ)*0.4)), mat);
+    box.position.set(cx, y+1.2, cz); box.castShadow = QUALITY.shadows;
+    worldGroup.add(box);
+  } else if (kind === 'flats' && (maxX-minX)*(maxZ-minZ) > 60) {
+    const chim = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.6, 0.8), new THREE.MeshLambertMaterial({ color: 0x6a4a3a }));
+    chim.position.set(cx + (rnd()-0.5)*(maxX-minX)*0.5, y+0.8, cz + (rnd()-0.5)*(maxZ-minZ)*0.5);
+    worldGroup.add(chim);
+  }
+}
+
+function addBuilding(outer, holes, tags, nB) {
+  try {
+    const poly = cleanRing(outer);
+    if (poly.length < 3) return false;
+    const area = Math.abs(polyArea(poly));
+    if (area < 12) return false;
+    const h = buildingHeight(tags, nB);
+    const levels = tags['building:levels'] ? parseFloat(tags['building:levels']) : Math.round((h-1.2)/3.3);
+    const kind = classifyBuilding(tags, area, levels, h);
+
+    const shape = new THREE.Shape(poly.map(p => new THREE.Vector2(p.x, -p.z)));
+    for (const hole of (holes || [])) {
+      const hp = cleanRing(hole);
+      if (hp.length >= 3 && Math.abs(polyArea(hp)) > 8)
+        shape.holes.push(new THREE.Path(hp.map(p => new THREE.Vector2(p.x, -p.z))));
+    }
+    let eMin = 1e9;
+    for (const p of poly) eMin = Math.min(eMin, elevAt(p.x, p.z));
+
+    // pitched-roof archetypes get walls a touch shorter, then a real gable on top
+    const pitched = (kind === 'townhouse' || kind === 'villa' || kind === 'outbuilding');
+    const wallH = pitched ? h : h;
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: wallH + 2.5, bevelEnabled: false });
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, eMin - 2.5, 0);                     // buried skirt hides slope gaps
+
+    // choose facade + cap material per archetype
+    let fm, capRoof;
+    switch (kind) {
+      case 'tower':       fm = pickMat(_bMats.tower, nB); capRoof = pickMat(_bMats.flatRoof, nB); break;
+      case 'townhouse':   fm = pickMat(_bMats.brick, nB); capRoof = pickMat(_bMats.tileRoof, nB); break;
+      case 'villa':       fm = pickMat(_bMats.villa, nB); capRoof = pickMat(_bMats.tileRoof, nB); break;
+      case 'civic':       fm = pickMat(_bMats.civic, nB); capRoof = _bMats.copperRoof; break;
+      case 'industrial':  fm = pickMat(_bMats.indus, nB); capRoof = pickMat(_bMats.flatRoof, nB); break;
+      case 'outbuilding': fm = pickMat(_bMats.out, nB);   capRoof = pickMat(_bMats.tileRoof, nB); break;
+      default:            fm = pickMat(_bMats.facade, nB); capRoof = pickMat(_bMats.flatRoof, nB); // flats
+    }
+    const mesh = new THREE.Mesh(geo, [capRoof, fm]);      // 0 = caps, 1 = walls
+    mesh.castShadow = QUALITY.shadows; mesh.receiveShadow = QUALITY.shadows;
+    worldGroup.add(mesh);
+    raycastTargets.push(mesh);
+
+    const roofBaseY = eMin + wallH;
+    if (pitched) addPitchedRoof(poly, eMin, roofBaseY, capRoof);
+    else if (kind === 'tower' || kind === 'flats') addRoofDetail(poly, roofBaseY, kind);
+
+    // villas get a garden hint: a few trees around a small footprint
+    if (kind === 'villa' && area < 400) {
+      let cx=0,cz=0; for (const p of poly){cx+=p.x;cz+=p.z;} cx/=poly.length; cz/=poly.length;
+      const rad = Math.sqrt(area)/2 + 5;
+      for (let k=0;k<2;k++){
+        const a=rnd()*6.28, tx=cx+Math.cos(a)*rad, tz=cz+Math.sin(a)*rad;
+        if (!insideBuildingRough(tx,tz,poly)) treeSpots.push({x:tx,z:tz});
+      }
+    }
+
+    let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9;
+    for (const p of poly) { minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z); }
+    buildings.push({ poly, aabb:{minX,maxX,minZ,maxZ}, h, name: tags.name || null, kind });
+    return true;
+  } catch (e) { console.warn('bad footprint skipped', e); return false; }
+}
+function insideBuildingRough(x, z, poly) { return pointInPoly(x, z, poly); }
+
+function resetWorld() {
+  for (let i = worldGroup.children.length - 1; i >= 0; i--) {
+    const c = worldGroup.children[i];
+    worldGroup.remove(c);
+    c.traverse && c.traverse(o => { if (o.geometry) o.geometry.dispose && o.geometry.dispose(); });
+  }
+  buildings.length = 0; roadPaths.length = 0; raycastTargets.length = 0;
+  treeSpots.length = 0; shops.length = 0; waterPolys.length = 0;
+  wayWater.length = 0; coastSegs.length = 0; waterRels.length = 0;
+  dashSpots.length = 0; waterTexList.length = 0;
+  minimapStatic = null; signCount = 0; namedCount = 0; _roadSample = null;
+}
+function buildWorld(elements) {
+  // ground: real DEM-displaced terrain draped in cobble
+  {
+    const SZ = 2800, SEG = 140;
+    const gg = new THREE.PlaneGeometry(SZ, SZ, SEG, SEG);
+    gg.rotateX(-Math.PI / 2);
+    const pa = gg.attributes.position;
+    for (let i = 0; i < pa.count; i++)
+      pa.setY(i, elevAt(pa.getX(i), pa.getZ(i)) - 0.04);
+    gg.computeVertexNormals();
+    const ct = cobbleTexture();
+    ct.repeat.set(SZ / 2.2, SZ / 2.2);
+    const ground = new THREE.Mesh(gg, new THREE.MeshLambertMaterial({ map: ct }));
+    ground.receiveShadow = true;
+    worldGroup.add(ground);
+  }
+
+  const roadMat = new THREE.MeshLambertMaterial({ map: asphaltTexture() });
+  const pathMat = new THREE.MeshLambertMaterial({ color: 0x8d8578 });
+  const parkMat = new THREE.MeshLambertMaterial({ color: 0x5f7d43 });
+  const roofMats = [ '#7a4a3a', '#6d5a4a', '#5a5f66', '#77503c', '#616a58' ]
+    .map(cc => new THREE.MeshLambertMaterial({ color: new THREE.Color(cc) }));
+  const facadeMats = FACADE_COLORS.map(cc => {
+    const tex = facadeTexture(cc);
+    tex.repeat.set(1 / 7.2, 1 / 3.3);               // ~2 windows / 7m, 1 floor / 3.3m
+    return new THREE.MeshLambertMaterial({ map: tex });
+  });
+
+  // ---- archetype-specific facade + roof materials ----
+  const towerTints = ['#3a5a72','#4a5560','#2e4658','#5a6270','#3d5a5f'];
+  const towerMats = towerTints.map(t => {
+    const tex = glassTowerTexture(t);
+    tex.repeat.set(1 / 5, 1 / 4.2);                 // fine curtain-wall grid
+    return new THREE.MeshPhongMaterial({ map: tex, specular: 0x99b0c8, shininess: 90 });
+  });
+  const brickPairs = [['9c5a44','c8a890'],['a86a4a','d0b498'],['8a4a38','c0a086'],['b47850','d8c0a4']];
+  const brickMats = brickPairs.map(([b,m]) => {
+    const tex = brickTexture(b, m);
+    tex.repeat.set(1 / 6.5, 1 / 3.2);
+    return new THREE.MeshLambertMaterial({ map: tex });
+  });
+  const villaTints = ['#e6dcc4','#d8c8a8','#f0e8d4','#c8b89a','#e0d0b0','#cfd8cf'];
+  const villaMats = villaTints.map(cc => {
+    const tex = facadeTexture(cc);
+    tex.repeat.set(1 / 6, 1 / 3.2);
+    return new THREE.MeshLambertMaterial({ map: tex });
+  });
+  const civicMats = ['#d8cbb0','#c9b896','#e0d6be','#cabfa2'].map(cc => {
+    const tex = facadeTexture(cc);
+    tex.repeat.set(1 / 8, 1 / 4);
+    return new THREE.MeshLambertMaterial({ map: tex });
+  });
+  const indusMats = ['#8a8f96','#7a7268','#9aa0a6','#6e6a62'].map(cc =>
+    new THREE.MeshLambertMaterial({ color: new THREE.Color(cc) }));
+  const outMats = ['#8a7d68','#9a8a70','#7a6a54'].map(cc =>
+    new THREE.MeshLambertMaterial({ color: new THREE.Color(cc) }));
+
+  // roof colours by material: tile-red for houses, grey/copper for civic, dark flat for towers
+  const tileRoof = ['#8a3f2c','#9a4a32','#7a3a28','#a85838','#6e4a3a'].map(cc =>
+    new THREE.MeshLambertMaterial({ color: new THREE.Color(cc) }));
+  const flatRoof = ['#3a3d42','#45484e','#33363b'].map(cc =>
+    new THREE.MeshLambertMaterial({ color: new THREE.Color(cc) }));
+  const copperRoof = new THREE.MeshLambertMaterial({ color: 0x5a8a72 });   // aged copper (Nordic civic)
+
+  _bMats = { roof: roofMats, facade: facadeMats, tower: towerMats, brick: brickMats,
+    villa: villaMats, civic: civicMats, indus: indusMats, out: outMats,
+    tileRoof, flatRoof, copperRoof };
+  _wMats = makeWaterMats();
+
+  let nB = 0, nR = 0;
+  let skipped = 0;
+  for (const el of elements) {
+   try {
+    if (el.type === 'node' && el.tags) {
+      if (el.tags.natural === 'tree') { treeSpots.push(ll2xz(el.lat, el.lon)); }
+      else {
+        const pt = poiType(el.tags);
+        if (pt) {
+          const p = ll2xz(el.lat, el.lon);
+          shops.push({ x: p.x, z: p.z, name: poiName(el.tags), type: pt });
+        }
+      }
+      continue;
+    }
+
+    if (el.type === 'relation' && el.tags &&
+        (el.tags.natural === 'water' || el.tags.water || el.tags.waterway === 'riverbank')) {
+      waterRels.push(el);
+      continue;
+    }
+
+    /* -------- multipolygon buildings (how most Stockholm blocks are mapped) -------- */
+    if (el.type === 'relation' && el.tags && el.tags.building && el.members) {
+      const outers = stitchRings(el.members, 'outer');
+      const inners = stitchRings(el.members, 'inner');
+      for (const outer of outers) {
+        const myHoles = inners.filter(h => pointInPoly(h[0].x, h[0].z, outer));
+        if (addBuilding(outer, myHoles, el.tags, nB)) nB++;
+      }
+      const rt = poiType(el.tags);
+      if (rt && outers.length) {
+        let cx = 0, cz = 0, n = 0;
+        for (const p of outers[0]) { cx += p.x; cz += p.z; n++; }
+        shops.push({ x: cx/n, z: cz/n, name: poiName(el.tags), type: rt });
+      }
+      continue;
+    }
+
+    if (el.type !== 'way' || !el.geometry) continue;
+    const tags = el.tags || {};
+    const pts = el.geometry.map(g => ll2xz(g.lat, g.lon));
+
+    // POI mapped as a whole way (shop/restaurant occupying a building) → sign at centroid
+    const wt = poiType(tags);
+    if (wt && pts.length) {
+      let cx = 0, cz = 0;
+      for (const p of pts) { cx += p.x; cz += p.z; }
+      shops.push({ x: cx/pts.length, z: cz/pts.length, name: poiName(tags), type: wt });
+    }
+
+    /* -------- buildings -------- */
+    if (tags.building) {
+      if (addBuilding(pts, null, tags, nB)) nB++;
+      continue;
+    }
+
+    /* -------- roads -------- */
+    if (tags.highway && ROAD_W[tags.highway] !== undefined) {
+      const w = ROAD_W[tags.highway];
+      const isPath = w < 5;
+      const isBridge = tags.bridge && tags.bridge !== 'no';
+      const deckY = isBridge
+        ? Math.max(elevAt(pts[0].x, pts[0].z), elevAt(pts[pts.length-1].x, pts[pts.length-1].z)) + 0.9
+        : undefined;
+      const mesh = ribbonMesh(pts, w, isPath ? pathMat : roadMat, isPath ? 0.012 : 0.02, deckY);
+      if (mesh) { worldGroup.add(mesh); nR++; }
+      if (!isPath) {
+        // sidewalks
+        const sw1 = ribbonMesh(offsetLine(pts, w/2 + 1.3), 2.4, pathMat, 0.06, deckY === undefined ? undefined : deckY + 0.02);
+        const sw2 = ribbonMesh(offsetLine(pts, -(w/2 + 1.3)), 2.4, pathMat, 0.06, deckY === undefined ? undefined : deckY + 0.02);
+        if (sw1) worldGroup.add(sw1); if (sw2) worldGroup.add(sw2);
+        // center dashes on wider streets
+        if (w >= 9 && !isBridge) collectDashes(pts);
+      }
+      roadPaths.push({ pts, type: tags.highway, name: tags.name || '', width: w,
+        drivable: !isPath && !['pedestrian','steps'].includes(tags.highway) });
+      continue;
+    }
+
+    /* -------- parks / green -------- */
+    if (tags.leisure || (tags.landuse && /grass|forest|cemetery|recreation|green/.test(tags.landuse)) || tags.natural === 'wood') {
+      if (pts.length < 4) continue;
+      const poly = pts.slice(0, pts.length - 1);
+      const shape = new THREE.Shape(poly.map(p => new THREE.Vector2(p.x, -p.z)));
+      const g = new THREE.ShapeGeometry(shape); g.rotateX(-Math.PI/2);
+      const gp = g.attributes.position;
+      for (let vi = 0; vi < gp.count; vi++)
+        gp.setY(vi, elevAt(gp.getX(vi), gp.getZ(vi)) + 0.12);
+      g.computeVertexNormals();
+      const m = new THREE.Mesh(g, parkMat);
+      m.receiveShadow = true;
+      worldGroup.add(m);
+      // scatter trees inside
+      const area = Math.abs(polyArea(poly));
+      const n = Math.min(60, Math.floor(area / 260));
+      const bb = poly.reduce((a,p)=>({minX:Math.min(a.minX,p.x),maxX:Math.max(a.maxX,p.x),minZ:Math.min(a.minZ,p.z),maxZ:Math.max(a.maxZ,p.z)}),{minX:1e9,maxX:-1e9,minZ:1e9,maxZ:-1e9});
+      for (let i = 0; i < n; i++) {
+        const px = bb.minX + rnd()*(bb.maxX-bb.minX), pz = bb.minZ + rnd()*(bb.maxZ-bb.minZ);
+        if (pointInPoly(px, pz, poly)) treeSpots.push({ x: px, z: pz });
+      }
+      continue;
+    }
+
+    /* -------- water & waterways -------- */
+    if (tags.natural === 'coastline') { coastSegs.push(pts); continue; }
+    if (tags.waterway && /^(river|stream|canal|ditch)$/.test(tags.waterway)) {
+      const wWid = parseFloat(tags.width) || { river: 14, canal: 9, stream: 2.8, ditch: 1.6 }[tags.waterway];
+      const m = ribbonMesh(pts, wWid, _wMats.flow, 0.09);
+      if (m) worldGroup.add(m);
+      continue;
+    }
+    if (tags.natural === 'water' || tags.water || tags.waterway === 'riverbank' || tags.waterway === 'dock') {
+      // open ways here are fragments of a relation — treating them as polygons floods streets
+      const isClosed = Math.hypot(pts[0].x - pts[pts.length-1].x, pts[0].z - pts[pts.length-1].z) < 1.2;
+      if (pts.length >= 4 && isClosed) wayWater.push(cleanRing(pts));
+      continue;
+    }
+   } catch (e) { skipped++; }                       // one bad element must not kill the whole map
+  }
+  if (skipped) console.warn('skipped', skipped, 'malformed OSM elements');
+
+  try { buildWater(); } catch (e) { console.warn('water build failed, skipping water', e); }
+  try { buildSigns(); } catch (e) { console.warn('signs failed', e); }
+  try { plantTrees(); } catch (e) { console.warn('trees failed', e); }
+  try { plantDashes(); } catch (e) { console.warn('dashes failed', e); }
+  buildMinimapStatic();     // must always run — the minimap depends on it
+  console.log(`world: ${nB} buildings, ${nR} road segments, ${treeSpots.length} trees`);
+}
+
+function offsetLine(pts, d) {
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i-1)], b = pts[Math.min(pts.length-1, i+1)];
+    let nx = -(b.z - a.z), nz = (b.x - a.x);
+    const l = Math.hypot(nx, nz) || 1; nx /= l; nz /= l;
+    out.push({ x: pts[i].x + nx*d, z: pts[i].z + nz*d });
+  }
+  return out;
+}
+
+function ribbonMesh(pts, width, mat, y, fixedY) {
+  if (pts.length < 2) return null;
+  const pos = [], uv = [], idx = [];
+  let dist = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i-1)], b = pts[Math.min(pts.length-1, i+1)];
+    let nx = -(b.z - a.z), nz = (b.x - a.x);
+    const l = Math.hypot(nx, nz) || 1; nx = nx/l*width/2; nz = nz/l*width/2;
+    if (i > 0) dist += Math.hypot(pts[i].x-pts[i-1].x, pts[i].z-pts[i-1].z);
+    const y1 = fixedY !== undefined ? fixedY : elevAt(pts[i].x - nx, pts[i].z - nz) + y;
+    const y2 = fixedY !== undefined ? fixedY : elevAt(pts[i].x + nx, pts[i].z + nz) + y;
+    pos.push(pts[i].x - nx, y1, pts[i].z - nz,  pts[i].x + nx, y2, pts[i].z + nz);
+    uv.push(0, dist, 1, dist);
+    if (i > 0) { const k = i*2; idx.push(k-2,k-1,k, k-1,k+1,k); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const m = new THREE.Mesh(g, mat);
+  m.receiveShadow = true;
+  return m;
+}
+
+const dashSpots = [];
+function collectDashes(pts) {
+  for (let i = 1; i < pts.length; i++) {
+    const ax = pts[i-1].x, az = pts[i-1].z, bx = pts[i].x, bz = pts[i].z;
+    const segLen = Math.hypot(bx-ax, bz-az);
+    const ang = Math.atan2(bx-ax, bz-az);
+    for (let d = 0; d < segLen; d += 7) {
+      const t = d / segLen;
+      dashSpots.push({ x: ax + (bx-ax)*t, z: az + (bz-az)*t, ang });
+    }
+  }
+}
+function plantDashes() {
+  if (!dashSpots.length) return;
+  const g = new THREE.PlaneGeometry(0.28, 2.4);
+  const inst = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ color: 0xd8d4c8 }), dashSpots.length);
+  const M = new THREE.Matrix4(), E = new THREE.Euler(), Q = new THREE.Quaternion(),
+        S = new THREE.Vector3(1,1,1), P = new THREE.Vector3();
+  dashSpots.forEach((d, i) => {
+    E.set(-Math.PI/2, 0, d.ang, 'XYZ');           // lie flat, then heading
+    Q.setFromEuler(E);
+    P.set(d.x, elevAt(d.x, d.z) + 0.06, d.z);
+    M.compose(P, Q, S);
+    inst.setMatrixAt(i, M);
+  });
+  worldGroup.add(inst);
+}
+
+/* trees as instanced meshes */
+function plantTrees() {
+  if (!treeSpots.length) return;
+  const n = treeSpots.length;
+  const trunkG = new THREE.CylinderGeometry(0.22, 0.32, 3.2, 6);
+  const crownG = new THREE.IcosahedronGeometry(2.4, 1);
+  const trunkM = new THREE.MeshLambertMaterial({ color: 0x5a4632 });
+  const crownM = new THREE.MeshLambertMaterial({ color: 0x4a6b33 });
+  const trunks = new THREE.InstancedMesh(trunkG, trunkM, n);
+  const crowns = new THREE.InstancedMesh(crownG, crownM, n);
+  trunks.castShadow = crowns.castShadow = QUALITY.shadows;
+  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    const t = treeSpots[i]; const s = 0.8 + rnd() * 0.8;
+    const te = elevAt(t.x, t.z);
+    P.set(t.x, te + 1.6*s, t.z); S.set(s, s, s); Q.identity();
+    M.compose(P, Q, S); trunks.setMatrixAt(i, M);
+    P.set(t.x, te + (3.2 + 1.4)*s, t.z); S.set(s*(0.85+rnd()*0.4), s*(0.9+rnd()*0.5), s*(0.85+rnd()*0.4));
+    M.compose(P, Q, S); crowns.setMatrixAt(i, M);
+  }
+  worldGroup.add(trunks, crowns);
+}
+
+/* ---------------- FALLBACK CITY (offline) ---------------- */
+function fallbackElements() {
+  loadMsg('Offline — generating procedural Vasastan');
+  const els = [];
+  const blockW = 90, blockH = 70, streets = 8;
+  const rot = 0.42;                                        // Stockholm grid tilt
+  const R = (x, z) => ({ lat: CENTER.lat - (x*Math.sin(rot)+z*Math.cos(rot))/M_PER_DEG_LAT,
+                         lon: CENTER.lon + (x*Math.cos(rot)-z*Math.sin(rot))/M_PER_DEG_LON });
+  for (let gx = -streets/2; gx < streets/2; gx++) {
+    for (let gz = -streets/2; gz < streets/2; gz++) {
+      const cx = gx*(blockW+14)+blockW/2, cz = gz*(blockH+14)+blockH/2;
+      if (Math.hypot(cx, cz) > RADIUS_M) continue;
+      if (rnd() < 0.12) {                                  // park block
+        const p = [R(cx-blockW/2,cz-blockH/2),R(cx+blockW/2,cz-blockH/2),R(cx+blockW/2,cz+blockH/2),R(cx-blockW/2,cz+blockH/2),R(cx-blockW/2,cz-blockH/2)];
+        els.push({ type:'way', tags:{leisure:'park'}, geometry:p });
+        continue;
+      }
+      const p = [R(cx-blockW/2,cz-blockH/2),R(cx+blockW/2,cz-blockH/2),R(cx+blockW/2,cz+blockH/2),R(cx-blockW/2,cz+blockH/2),R(cx-blockW/2,cz-blockH/2)];
+      els.push({ type:'way', tags:{building:'yes',"building:levels":String(5+Math.floor(rnd()*3))}, geometry:p });
+    }
+  }
+  const names = ['Odengatan','Sveavägen','Tegnérgatan','Döbelnsgatan','Tulegatan','Rehnsgatan','Kungstensgatan','Rådmansgatan'];
+  for (let gx = -streets/2; gx <= streets/2; gx++) {
+    els.push({ type:'way', tags:{highway: gx%3===0?'secondary':'residential', name:names[(gx+4+8)%names.length]},
+      geometry: [R(gx*(blockW+14)-7, -700), R(gx*(blockW+14)-7, 700)] });
+    els.push({ type:'way', tags:{highway: gx%3===0?'secondary':'residential', name:names[(gx+9+8)%names.length]},
+      geometry: [R(-700, gx*(blockH+14)-7), R(700, gx*(blockH+14)-7)] });
+  }
+  return els;
+}
+/* ---------------- PLAYER ---------------- */
+const player = {
+  pos: new THREE.Vector3(0, 1.7, 0),
+  vel: new THREE.Vector3(),
+  yaw: 0, pitch: 0,
+  onGround: true, hp: 100, alive: true,
+  radius: 0.45, eyeH: 1.7,
+  kills: 0
+};
+const keys = {};
+let locked = false, paused = false, started = false;
+
+function findSpawn() {                 // nearest street point that isn't inside a building or in water
+  const cands = [];
+  for (const r of roadPaths) {
+    if (!r.drivable) continue;
+    for (const p of r.pts) cands.push(p);
+  }
+  cands.sort((a, b) => (a.x*a.x + a.z*a.z) - (b.x*b.x + b.z*b.z));
+  for (const p of cands) {
+    if (insideBuilding(p.x, p.z)) continue;
+    if (waterAt(p.x, p.z) !== null) continue;
+    player.pos.set(p.x, elevAt(p.x, p.z) + player.eyeH, p.z);
+    return;
+  }
+  // no clear road point (odd map): spiral outward over open ground
+  for (let rr = 5; rr < RADIUS_M; rr += 12) {
+    for (let a = 0; a < Math.PI*2; a += 0.6) {
+      const x = Math.cos(a)*rr, z = Math.sin(a)*rr;
+      if (!insideBuilding(x, z) && waterAt(x, z) === null) {
+        player.pos.set(x, elevAt(x, z) + player.eyeH, z);
+        return;
+      }
+    }
+  }
+}
+
+function collide(pos, radius) {
+  for (const b of buildings) {
+    const a = b.aabb;
+    if (pos.x < a.minX - radius || pos.x > a.maxX + radius ||
+        pos.z < a.minZ - radius || pos.z > a.maxZ + radius) continue;
+    // closest point on polygon boundary
+    let cx = 0, cz = 0, cd = 1e9;
+    const poly = b.poly;
+    for (let i = 0; i < poly.length; i++) {
+      const p1 = poly[i], p2 = poly[(i+1)%poly.length];
+      const dx = p2.x-p1.x, dz = p2.z-p1.z;
+      const t = Math.max(0, Math.min(1, ((pos.x-p1.x)*dx + (pos.z-p1.z)*dz) / (dx*dx+dz*dz || 1)));
+      const qx = p1.x + dx*t, qz = p1.z + dz*t;
+      const d = Math.hypot(pos.x-qx, pos.z-qz);
+      if (d < cd) { cd = d; cx = qx; cz = qz; }
+    }
+    const inside = pointInPoly(pos.x, pos.z, poly);
+    if (inside || cd < radius) {
+      let nx = pos.x - cx, nz = pos.z - cz;
+      const l = Math.hypot(nx, nz) || 1; nx /= l; nz /= l;
+      if (inside) { nx = -nx; nz = -nz; }
+      pos.x = cx + nx * (radius + 0.02);
+      pos.z = cz + nz * (radius + 0.02);
+    }
+  }
+  const rr = Math.hypot(pos.x, pos.z);            // stay inside loaded world
+  if (rr > RADIUS_M + 40) { pos.x *= (RADIUS_M+40)/rr; pos.z *= (RADIUS_M+40)/rr; }
+}
+
+function updatePlayer(dt) {
+  if (!player.alive) return;
+  const f = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
+  const r = new THREE.Vector3(-f.z, 0, f.x);          // camera-right
+  let mF = 0, mR = 0;
+  if (keys['KeyW']) mF += 1;
+  if (keys['KeyS']) mF -= 1;
+  if (keys['KeyD']) mR += 1;
+  if (keys['KeyA']) mR -= 1;
+  mF += -joyY; mR += joyX;                            // touch joystick
+  const mag = Math.hypot(mF, mR);
+  const sprint = keys['ShiftLeft'] || keys['ShiftRight'] || mag > 0.95;
+  let speed = sprint ? 9.5 : 5.2;
+  if (player.swimming) speed = 2.4;
+  const wish = new THREE.Vector3();
+  if (mag > 0.001) {
+    const s = Math.min(1, mag) * speed;
+    wish.addScaledVector(f, mF / mag * s).addScaledVector(r, mR / mag * s);
+  }
+  player.vel.x += (wish.x - player.vel.x) * Math.min(1, dt * 10);
+  player.vel.z += (wish.z - player.vel.z) * Math.min(1, dt * 10);
+  if (keys['Space'] && player.onGround) { player.vel.y = 5.4; player.onGround = false; }
+  player.vel.y -= 15 * dt;
+  player.pos.addScaledVector(player.vel, dt);
+  collide(player.pos, player.radius);
+  const terrY = elevAt(player.pos.x, player.pos.z);
+  const groundY = terrY + player.eyeH;
+  if (player.pos.y <= groundY) { player.pos.y = groundY; player.vel.y = 0; player.onGround = true; }
+  // water: you swim, you don't walk on it
+  const wl = waterAt(player.pos.x, player.pos.z);
+  player.swimming = false;
+  if (wl !== null && wl > terrY + 0.35) {
+    player.swimming = true;
+    player.pos.y = wl + 0.55 + Math.sin(performance.now() / 620) * 0.06;
+    player.vel.y = 0;
+    player.onGround = false;
+  }
+
+  camera.position.copy(player.pos);
+  // head bob
+  if (player.onGround && wish.lengthSq() > 0) {
+    bobT += dt * (speed > 6 ? 11 : 7.5);
+    camera.position.y += Math.sin(bobT) * 0.045;
+  }
+  camera.rotation.set(player.pitch, player.yaw + Math.PI, 0, 'YXZ');
+}
+let bobT = 0;
+
+/* ---------------- AUDIO (synth) ---------------- */
+let AC = null;
+function audio() { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); return AC; }
+function sfxShot(loud=1) {
+  const a = audio(), t = a.currentTime;
+  const buf = a.createBuffer(1, 2205, 44100);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/d.length, 2.2);
+  const src = a.createBufferSource(); src.buffer = buf;
+  const g = a.createGain(); g.gain.setValueAtTime(0.5*loud, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.16);
+  const f = a.createBiquadFilter(); f.type='lowpass'; f.frequency.value = 2600;
+  src.connect(f).connect(g).connect(a.destination); src.start();
+  const o = a.createOscillator(); o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(40, t+0.1);
+  const og = a.createGain(); og.gain.setValueAtTime(0.35*loud, t); og.gain.exponentialRampToValueAtTime(0.001, t+0.12);
+  o.connect(og).connect(a.destination); o.start(t); o.stop(t+0.13);
+}
+function sfxHit() {
+  const a = audio(), t = a.currentTime;
+  const o = a.createOscillator(); o.type='square'; o.frequency.setValueAtTime(1180, t);
+  const g = a.createGain(); g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.07);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t+0.08);
+}
+
+/* ---------------- WEAPONS ---------------- */
+const WEAPONS = [
+  { name:'PISTOL',  mag:12, reserve:96,  dmg:34, rate:0.24, auto:false, spread:0.006, kick:0.030 },
+  { name:'CARBINE', mag:30, reserve:150, dmg:22, rate:0.09, auto:true,  spread:0.014, kick:0.018 }
+];
+let wIdx = 0, mag = WEAPONS[0].mag, reserve = WEAPONS[0].reserve;
+let cd = 0, reloading = 0, firing = false, recoil = 0;
+let gun, muzzle;
+
+function buildGun() {
+  gun = new THREE.Group();
+  const dark = new THREE.MeshLambertMaterial({ color: 0x23262b });
+  const grip = new THREE.MeshLambertMaterial({ color: 0x3a2e22 });
+  const slide = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.075, 0.30), dark);
+  slide.position.set(0, 0.02, -0.14);
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.13, 0.06), grip);
+  handle.position.set(0, -0.065, -0.02); handle.rotation.x = 0.25;
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.1, 8), dark);
+  barrel.rotation.x = Math.PI/2; barrel.position.set(0, 0.03, -0.32);
+  gun.add(slide, handle, barrel);
+  muzzle = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xffd27a, transparent: true, opacity: 0 }));
+  muzzle.scale.set(0.28, 0.28, 1); muzzle.position.set(0, 0.03, -0.4);
+  gun.add(muzzle);
+  gun.position.set(0.22, -0.2, -0.45);
+  camera.add(gun);
+  scene.add(camera);
+}
+
+const raycaster = new THREE.Raycaster();
+const sparks = [];
+function shoot() {
+  const W = WEAPONS[wIdx];
+  if (cd > 0 || reloading > 0 || !player.alive) return;
+  if (mag <= 0) { reload(); return; }
+  mag--; cd = W.rate; recoil = 1;
+  lastShot = { x: player.pos.x, z: player.pos.z, t: performance.now() / 1000 };
+  sfxShot(wIdx === 0 ? 1 : 0.8);
+  muzzle.material.opacity = 0.95;
+  const dir = new THREE.Vector3(0, 0, -1)
+    .applyQuaternion(camera.quaternion);
+  dir.x += (Math.random()-0.5) * W.spread * 2;
+  dir.y += (Math.random()-0.5) * W.spread * 2;
+  player.pitch += W.kick; // vertical kick
+  raycaster.set(camera.position, dir.normalize());
+  raycaster.far = 400;
+
+  // enemies first
+  let bestE = null, bestD = 1e9, hitPoint = null;
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    const box = new THREE.Box3().setFromObject(e.grp);
+    const hp2 = raycaster.ray.intersectBox(box, new THREE.Vector3());
+    if (hp2) { const d = hp2.distanceTo(camera.position); if (d < bestD) { bestD = d; bestE = e; hitPoint = hp2.clone(); } }
+  }
+  const hits = raycaster.intersectObjects(raycastTargets, false);
+  const wallD = hits.length ? hits[0].distance : 1e9;
+
+  if (bestE && bestD < wallD) {
+    bestE.hp -= W.dmg; sfxHit();
+    bestE.flinch = 0.22; bestE.provoked = true;
+    if (bestE.hp > 0 && bestE.state !== 'retreat') { bestE.state = 'attack'; bestE.aimT = 0.25; bestE.seen = true; }
+    // in explore mode, nearby NPCs also turn hostile when they witness an attack
+    if (GAME_MODE === 'explore') for (const o of enemies)
+      if (o.alive && o !== bestE && Math.hypot(o.grp.position.x - bestE.grp.position.x, o.grp.position.z - bestE.grp.position.z) < 30)
+        o.provoked = true;
+    $('hitmark').style.opacity = 1; setTimeout(() => $('hitmark').style.opacity = 0, 90);
+    spawnSparks(hitPoint, 0xb03a2a);
+    if (bestE.hp <= 0) killEnemy(bestE);
+  } else if (hits.length) {
+    spawnSparks(hits[0].point, 0xd8c090);
+  }
+  updateAmmoHUD();
+}
+function reload() {
+  const W = WEAPONS[wIdx];
+  if (reloading > 0 || mag === W.mag || reserve <= 0) return;
+  reloading = 1.3;
+  $('reloadhint').textContent = 'RELOADING…';
+}
+function finishReload() {
+  const W = WEAPONS[wIdx];
+  const need = W.mag - mag, take = Math.min(need, reserve);
+  mag += take; reserve -= take;
+  $('reloadhint').textContent = '';
+  updateAmmoHUD();
+}
+function switchWeapon(i) {
+  if (i === wIdx) return;
+  WEAPONS[wIdx].savedMag = mag; WEAPONS[wIdx].savedRes = reserve;
+  wIdx = i;
+  mag = WEAPONS[i].savedMag ?? WEAPONS[i].mag;
+  reserve = WEAPONS[i].savedRes ?? WEAPONS[i].reserve;
+  reloading = 0; $('reloadhint').textContent = '';
+  gun.scale.set(1, 1, wIdx === 1 ? 1.7 : 1);
+  updateAmmoHUD();
+}
+function updateAmmoHUD() {
+  $('mag').textContent = mag; $('reserve').textContent = reserve;
+  $('wname').textContent = WEAPONS[wIdx].name;
+}
+function spawnSparks(p, color) {
+  const g = new THREE.BufferGeometry();
+  const n = 10, pos = new Float32Array(n*3), vel = [];
+  for (let i = 0; i < n; i++) {
+    pos[i*3] = p.x; pos[i*3+1] = p.y; pos[i*3+2] = p.z;
+    vel.push(new THREE.Vector3((Math.random()-0.5)*5, Math.random()*4, (Math.random()-0.5)*5));
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const m = new THREE.Points(g, new THREE.PointsMaterial({ color, size: 0.09 }));
+  scene.add(m);
+  sparks.push({ m, vel, t: 0.5 });
+}
+function updateSparks(dt) {
+  for (let i = sparks.length-1; i >= 0; i--) {
+    const s = sparks[i]; s.t -= dt;
+    const a = s.m.geometry.attributes.position;
+    for (let k = 0; k < s.vel.length; k++) {
+      s.vel[k].y -= 12*dt;
+      a.array[k*3] += s.vel[k].x*dt; a.array[k*3+1] += s.vel[k].y*dt; a.array[k*3+2] += s.vel[k].z*dt;
+    }
+    a.needsUpdate = true;
+    if (s.t <= 0) { scene.remove(s.m); s.m.geometry.dispose(); sparks.splice(i, 1); }
+  }
+}
+
+/* ---------------- ENEMIES ---------------- */
+const enemies = [];
+let GAME_MODE = 'explore';
+const MODE_ENEMIES = {
+  explore:    Math.round(QUALITY.enemies * 0.4),   // sparse — a handful wandering
+  deathmatch: Math.round(QUALITY.enemies * 3.2)    // swarming
+};
+function enemyCount() { return MODE_ENEMIES[GAME_MODE]; }
+let lastShot = { x: 0, z: 0, t: -1e9 };
+
+function makeEnemyMesh() {
+  const grp = new THREE.Group();
+  const skins = [0xd9b08c, 0xc89a74, 0x9a6a44, 0xf0cba6, 0x7a5030];
+  const hairs = [0x2a201a, 0x4a3826, 0x8a6a3a, 0x707070, 0x14140f];
+  const skin = new THREE.MeshLambertMaterial({ color: skins[Math.floor(rnd()*skins.length)] });
+  const jacket = new THREE.MeshLambertMaterial({ color: new THREE.Color().setHSL(rnd(), 0.30, 0.22 + rnd()*0.20) });
+  const pants = new THREE.MeshLambertMaterial({ color: new THREE.Color().setHSL(0.5 + rnd()*0.15, 0.18, 0.15 + rnd()*0.12) });
+  const hair = new THREE.MeshLambertMaterial({ color: hairs[Math.floor(rnd()*hairs.length)] });
+  const dark = new THREE.MeshLambertMaterial({ color: 0x14161a });
+
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.58, 0.26), jacket);
+  torso.position.y = 1.14;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 10), skin);
+  head.position.y = 1.60;
+  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.157, 12, 8, 0, Math.PI*2, 0, Math.PI/2.1), hair);
+  hairCap.position.y = 1.62;
+
+  const mkLimb = (w, len, mat, px, py) => {
+    const pivot = new THREE.Group(); pivot.position.set(px, py, 0);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, len, w + 0.02), mat);
+    m.position.y = -len / 2;
+    pivot.add(m);
+    return pivot;
+  };
+  const legL = mkLimb(0.15, 0.88, pants, -0.12, 0.88);
+  const legR = mkLimb(0.15, 0.88, pants,  0.12, 0.88);
+  const armL = mkLimb(0.11, 0.58, jacket, -0.30, 1.40);
+  const armR = mkLimb(0.11, 0.58, jacket,  0.30, 1.40);
+  const gun = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.07, 0.30), dark);
+  gun.position.set(0, -0.58, -0.12);
+  armR.add(gun);
+  const flash = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xffd27a, transparent: true, opacity: 0 }));
+  flash.scale.set(0.35, 0.35, 1); flash.position.set(0, -0.62, -0.34);
+  armR.add(flash);
+
+  grp.add(torso, head, hairCap, legL, legR, armL, armR);
+  grp.scale.setScalar(0.92 + rnd() * 0.16);
+  grp.traverse(o => { if (o.isMesh) o.castShadow = QUALITY.shadows; });
+  grp.userData = { legL, legR, armL, armR, torso, head, flash };
+  return grp;
+}
+
+function randomStreetPoint() {
+  for (let tries = 0; tries < 60; tries++) {
+    const r = roadPaths[Math.floor(rnd()*roadPaths.length)];
+    if (!r || !r.pts.length) continue;
+    const p = r.pts[Math.floor(rnd()*r.pts.length)];
+    if (Math.hypot(p.x, p.z) < RADIUS_M && waterAt(p.x, p.z) === null && !insideBuilding(p.x, p.z))
+      return { x: p.x + (rnd()-0.5)*4, z: p.z + (rnd()-0.5)*4 };
+  }
+  return { x: (rnd()-0.5)*200, z: (rnd()-0.5)*200 };
+}
+
+function spawnEnemies() {
+  const N = enemyCount();
+  for (let i = 0; i < N; i++) {
+    const grp = makeEnemyMesh();
+    const p = randomStreetPoint();
+    grp.position.set(p.x, elevAt(p.x, p.z), p.z);
+    scene.add(grp);
+    enemies.push({ grp, hp: 100, alive: true, state: 'patrol',
+      target: randomStreetPoint(), speed: 1.2 + rnd()*0.7,
+      burst: 0, shotCd: 1 + rnd()*2, aimT: 0, flinch: 0, deadT: 0, sink: 0,
+      heading: rnd()*Math.PI*2, phase: rnd()*10, strafeDir: rnd() < 0.5 ? 1 : -1,
+      strafeT: 0, lookCd: rnd(), seen: false, provoked: false, fallDir: 1, invPt: null, searchT: 0 });
+  }
+}
+
+function killEnemy(e) {
+  e.alive = false; e.deadT = 7; e.sink = 0;
+  e.fallDir = rnd() < 0.5 ? -1 : 1;
+  const U = e.grp.userData;
+  U.armL.rotation.x = -0.9 - rnd(); U.armR.rotation.x = -0.4 - rnd();
+  U.legL.rotation.x = U.legR.rotation.x = 0;
+  player.kills++;
+  $('kills').textContent = (GAME_MODE === 'deathmatch' ? 'DEATHMATCH · ' : '') + 'ELIMINATIONS ' + player.kills;
+}
+
+function respawnEnemy(e) {
+  let p; do { p = randomStreetPoint(); } while (Math.hypot(p.x-player.pos.x, p.z-player.pos.z) < 60);
+  e.grp.position.set(p.x, elevAt(p.x, p.z), p.z);
+  e.grp.rotation.z = 0; e.sink = 0; e.flinch = 0; e.burst = 0;
+  const U = e.grp.userData;
+  U.armL.rotation.x = U.armR.rotation.x = U.torso.rotation.x = 0;
+  e.hp = 100; e.alive = true; e.state = 'patrol'; e.provoked = false; e.target = randomStreetPoint();
+}
+
+function losClear(from, to) {
+  const d = to.clone().sub(from); const dist = d.length();
+  raycaster.set(from, d.normalize()); raycaster.far = dist;
+  return raycaster.intersectObjects(raycastTargets, false).length === 0;
+}
+function tryMove(e, dx, dz, dt, rate) {
+  const nx = e.grp.position.x + dx * dt * rate;
+  const nz = e.grp.position.z + dz * dt * rate;
+  if (waterAt(nx, nz) !== null) return false;            // no wading
+  e.grp.position.x = nx; e.grp.position.z = nz;
+  return true;
+}
+
+function updateEnemies(dt) {
+  const now = performance.now() / 1000;
+  for (const e of enemies) {
+    const U = e.grp.userData;
+    if (!e.alive) {
+      e.grp.rotation.z += (e.fallDir * Math.PI/2 - e.grp.rotation.z) * Math.min(1, dt*5);
+      e.sink = Math.min(0.55, e.sink + dt * 0.3);
+      e.grp.position.y = elevAt(e.grp.position.x, e.grp.position.z) + 0.3 - e.sink;
+      e.deadT -= dt;
+      if (e.deadT <= 0) respawnEnemy(e);
+      continue;
+    }
+    const px = player.pos.x, pz = player.pos.z;
+    const dx = px - e.grp.position.x, dz = pz - e.grp.position.z;
+    const dist = Math.hypot(dx, dz) || 0.001;
+
+    if (e.flinch > 0) { e.flinch -= dt; U.torso.rotation.x = -e.flinch * 1.1; continue; }
+    U.torso.rotation.x *= 0.85;
+
+    /* ---- perception: vision cone + occlusion + hearing ---- */
+    const facing = { x: Math.sin(e.heading), z: Math.cos(e.heading) };
+    const inFov = (dx*facing.x + dz*facing.z) / dist > 0.2;      // ~155° cone
+    let seesPlayer = false;
+    e.lookCd -= dt;
+    if (player.alive && dist < 55 && (inFov || dist < 8)) {
+      if (e.lookCd <= 0) {
+        e.lookCd = 0.22 + rnd() * 0.2;                            // throttled raycasts
+        const eyes = e.grp.position.clone(); eyes.y += 1.55;
+        e.seen = losClear(eyes, player.pos.clone());
+      }
+      seesPlayer = e.seen;
+    } else e.seen = false;
+    const heard = (now - lastShot.t) < 4 &&
+      Math.hypot(lastShot.x - e.grp.position.x, lastShot.z - e.grp.position.z) < 95;
+
+    /* ---- state machine ---- */
+    const hostile = GAME_MODE === 'deathmatch' || e.provoked;   // explorers only fight back when shot
+    if (seesPlayer && hostile && e.state !== 'attack' && e.state !== 'retreat') {
+      e.state = 'attack';
+      e.aimT = 0.45 + rnd() * 0.5;                                // human reaction time
+    } else if ((e.state === 'attack' || e.state === 'retreat') && !seesPlayer && dist > 65) {
+      e.state = 'search'; e.invPt = { x: px, z: pz }; e.searchT = 7;
+    } else if ((e.state === 'patrol') && heard && (GAME_MODE === 'deathmatch' || e.provoked)) {
+      e.state = 'investigate'; e.invPt = { x: lastShot.x, z: lastShot.z };
+    }
+    if (e.hp < 30 && e.state === 'attack') e.state = 'retreat';
+    if (e.state === 'retreat' && dist > 55) e.state = 'patrol';
+
+    let moveX = 0, moveZ = 0, moveRate = 0, wantHeading = e.heading;
+
+    if (e.state === 'attack' || e.state === 'retreat') {
+      wantHeading = Math.atan2(dx, dz);
+      if (e.state === 'retreat') { moveX = -dx/dist; moveZ = -dz/dist; moveRate = e.speed * 2.3; }
+      else if (dist > 26)        { moveX =  dx/dist; moveZ =  dz/dist; moveRate = e.speed * 2.4; }
+      else if (dist < 9)         { moveX = -dx/dist; moveZ = -dz/dist; moveRate = e.speed * 1.6; }
+      else {
+        e.strafeT -= dt;                                          // hold range, work the angle
+        if (e.strafeT <= 0) { e.strafeT = 1 + rnd()*1.6; e.strafeDir *= -1; }
+        moveX = -dz/dist * e.strafeDir; moveZ = dx/dist * e.strafeDir;
+        moveRate = e.speed * 1.2;
+      }
+      /* ---- burst fire ---- */
+      e.aimT -= dt;
+      if (seesPlayer && e.aimT <= 0 && player.alive) {
+        e.shotCd -= dt;
+        if (e.burst > 0) {
+          if (e.shotCd <= 0) {
+            e.burst--; e.shotCd = 0.13;
+            sfxShot(Math.max(0.1, 0.5 - dist / 120));
+            U.flash.material.opacity = 1;
+            const pSpd = Math.hypot(player.vel.x, player.vel.z);
+            const hitP = Math.max(0.06, 0.55 - dist/75 - pSpd*0.035);
+            if (Math.random() < hitP) damagePlayer(6 + Math.random()*6);
+          }
+        } else if (e.shotCd <= 0) {
+          e.burst = 2 + Math.floor(rnd()*3);
+          e.shotCd = 0.9 + rnd()*1.5;
+        }
+      }
+    } else if (e.state === 'investigate' || e.state === 'search') {
+      e.searchT -= dt;
+      const tx = e.invPt.x - e.grp.position.x, tz = e.invPt.z - e.grp.position.z;
+      const td = Math.hypot(tx, tz);
+      if (td < 3 || (e.state === 'investigate' && (now - lastShot.t) > 14) || (e.state === 'search' && e.searchT <= 0)) {
+        e.state = 'patrol'; e.target = randomStreetPoint();
+      } else { moveX = tx/td; moveZ = tz/td; moveRate = e.speed * 1.9; wantHeading = Math.atan2(tx, tz); }
+    } else {                                                      // patrol
+      if (!e.target) e.target = randomStreetPoint();
+      const tx = e.target.x - e.grp.position.x, tz = e.target.z - e.grp.position.z;
+      const td = Math.hypot(tx, tz);
+      if (td < 2.5) e.target = randomStreetPoint();
+      else { moveX = tx/td; moveZ = tz/td; moveRate = e.speed; wantHeading = Math.atan2(tx, tz); }
+    }
+
+    /* smooth turning, no snap */
+    let dh = wantHeading - e.heading;
+    while (dh > Math.PI) dh -= 2*Math.PI;
+    while (dh < -Math.PI) dh += 2*Math.PI;
+    e.heading += dh * Math.min(1, dt * 7);
+    e.grp.rotation.y = e.heading;
+
+    let moved = false;
+    if (moveRate > 0) {
+      moved = tryMove(e, moveX, moveZ, dt, moveRate);
+      if (!moved && e.state === 'patrol') e.target = randomStreetPoint();
+    }
+    collide(e.grp.position, 0.4);
+
+    /* ---- animation: legs, arms, aim pose, idle head ---- */
+    e.phase += dt * (3 + (moved ? moveRate * 2.2 : 0));
+    const sw = moved ? Math.min(0.62, 0.28 + moveRate * 0.08) : 0;
+    U.legL.rotation.x =  Math.sin(e.phase) * sw;
+    U.legR.rotation.x = -Math.sin(e.phase) * sw;
+    if (e.state === 'attack' || e.state === 'retreat') {
+      U.armR.rotation.x += (-Math.PI/2 - U.armR.rotation.x) * Math.min(1, dt*10);
+      U.armL.rotation.x += (-0.9 - U.armL.rotation.x) * Math.min(1, dt*10);
+    } else {
+      U.armR.rotation.x = -Math.sin(e.phase) * sw * 0.7;
+      U.armL.rotation.x =  Math.sin(e.phase) * sw * 0.7;
+    }
+    U.flash.material.opacity = Math.max(0, U.flash.material.opacity - dt * 10);
+    U.head.rotation.y = Math.sin(now * 0.7 + e.phase * 0.15) * 0.14;
+
+    e.grp.position.y = elevAt(e.grp.position.x, e.grp.position.z)
+      + (moved ? Math.abs(Math.sin(e.phase)) * 0.05 : 0);
+  }
+}
+
+function damagePlayer(d) {
+  if (!player.alive) return;
+  player.hp -= d;
+  $('dmg').style.opacity = 0.9; setTimeout(() => $('dmg').style.opacity = 0, 260);
+  $('healthfill').style.width = Math.max(0, player.hp) + '%';
+  $('healthfill').style.background = player.hp < 30 ? 'linear-gradient(#c8402f,#8f2a1d)' : 'linear-gradient(#69b34c,#4d8f37)';
+  if (player.hp <= 0) {
+    player.alive = false;
+    document.exitPointerLock();
+    $('ovtitle').textContent = 'WASTED'; $('ovtitle').className = 'wasted';
+    $('ovsub').textContent = 'Click to respawn at ' + ($('street').textContent || 'spawn');
+    $('overlay').style.display = 'flex';
+  }
+}
+function respawnPlayer() {
+  player.hp = 100; player.alive = true; player.vel.set(0,0,0);
+  findSpawn();
+  $('healthfill').style.width = '100%';
+  $('healthfill').style.background = 'linear-gradient(#69b34c,#4d8f37)';
+  $('ovtitle').className = '';
+  mag = WEAPONS[wIdx].mag; reserve = WEAPONS[wIdx].reserve; updateAmmoHUD();
+}
+
+/* ---------------- TRAFFIC ---------------- */
+const cars = [];
+const CAR_COLORS = [0x9aa4b0, 0x30343c, 0x7a2a22, 0xc9c4b8, 0x3d5068, 0x6b6f52];
+function makeCar() {
+  const g = new THREE.Group();
+  const col = CAR_COLORS[Math.floor(rnd()*CAR_COLORS.length)];
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.55, 4.2), new THREE.MeshLambertMaterial({ color: col }));
+  body.position.y = 0.55;
+  g.add(body);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.5, 2.0),
+    new THREE.MeshLambertMaterial({ color: 0x222831 }));
+  cabin.position.set(0, 1.05, -0.2);
+  g.add(cabin);
+  const wg = new THREE.CylinderGeometry(0.32, 0.32, 0.24, 10);
+  const wm = new THREE.MeshLambertMaterial({ color: 0x14161a });
+  [[-0.85,1.3],[0.85,1.3],[-0.85,-1.3],[0.85,-1.3]].forEach(([x,z]) => {
+    const w = new THREE.Mesh(wg, wm); w.rotation.z = Math.PI/2; w.position.set(x, 0.32, z); g.add(w);
+  });
+  body.castShadow = true;
+  return g;
+}
+function spawnCars() {
+  const drivable = roadPaths.filter(r => r.drivable && r.pts.length > 3 && r.width >= 6.5);
+  const n = Math.min(14, drivable.length);
+  for (let i = 0; i < n; i++) {
+    const road = drivable[Math.floor(rnd()*drivable.length)];
+    const car = makeCar();
+    scene.add(car);
+    cars.push({ grp: car, road, seg: Math.floor(rnd()*(road.pts.length-1)), t: rnd(),
+      dir: rnd() < 0.5 ? 1 : -1, speed: 6 + rnd()*4, lane: road.width * 0.22 });
+  }
+}
+function updateCars(dt) {
+  for (const c of cars) {
+    const pts = c.road.pts;
+    let a = pts[c.seg], b = pts[c.seg + c.dir] || null;
+    if (!b) { c.dir *= -1; b = pts[c.seg + c.dir]; if (!b) continue; }
+    const segLen = Math.hypot(b.x-a.x, b.z-a.z) || 1;
+    c.t += (c.speed * dt) / segLen;
+    if (c.t >= 1) {
+      c.t = 0; c.seg += c.dir;
+      if (c.seg <= 0 || c.seg >= pts.length-1) c.dir *= -1;
+      a = pts[c.seg]; b = pts[c.seg + c.dir] || a;
+    }
+    const nx = -(b.z-a.z)/segLen, nz = (b.x-a.x)/segLen;   // lane offset (right side)
+    const off = c.lane * c.dir;
+    const cx = a.x + (b.x-a.x)*c.t + nx*off, cz = a.z + (b.z-a.z)*c.t + nz*off;
+    c.grp.position.set(cx, elevAt(cx, cz), cz);
+    c.grp.rotation.y = Math.atan2(b.x-a.x, b.z-a.z);
+  }
+}
+/* ---------------- MINIMAP ---------------- */
+const MM_SCALE = 1.35;      // px per meter on the static map
+function buildMinimapStatic() {
+  const size = Math.ceil((RADIUS_M + 80) * 2 * MM_SCALE);
+  minimapStatic = document.createElement('canvas');
+  minimapStatic.width = minimapStatic.height = size;
+  const x = minimapStatic.getContext('2d');
+  const W = size / 2;
+  x.fillStyle = '#20262e'; x.fillRect(0, 0, size, size);
+  // parks
+  x.fillStyle = '#33502e';
+  // (parks not stored separately; approximate with tree clusters)
+  for (const t of treeSpots) { x.beginPath(); x.arc(W + t.x*MM_SCALE, W + t.z*MM_SCALE, 3.4, 0, 7); x.fill(); }
+  // water
+  x.fillStyle = '#2e4a63';
+  for (const w of waterPolys) {
+    x.beginPath();
+    w.outer.forEach((p, i) => i ? x.lineTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE) : x.moveTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE));
+    x.closePath(); x.fill();
+    x.fillStyle = '#20262e';
+    for (const h of w.holes) {
+      x.beginPath();
+      h.forEach((p, i) => i ? x.lineTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE) : x.moveTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE));
+      x.closePath(); x.fill();
+    }
+    x.fillStyle = '#2e4a63';
+  }
+  // buildings — tinted by archetype
+  const KIND_COL = { tower:'#5a6a80', flats:'#4a5260', townhouse:'#7a5648',
+    villa:'#6e7458', civic:'#8a7a5a', industrial:'#5a5d62', outbuilding:'#4a453d' };
+  for (const b of buildings) {
+    x.fillStyle = KIND_COL[b.kind] || '#4a5260';
+    x.beginPath();
+    b.poly.forEach((p, i) => i ? x.lineTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE) : x.moveTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE));
+    x.closePath(); x.fill();
+  }
+  // roads
+  x.lineCap = 'round'; x.lineJoin = 'round';
+  for (const r of roadPaths) {
+    x.strokeStyle = r.width >= 9 ? '#c8bfa8' : (r.width >= 5 ? '#9a948a' : '#6f6a62');
+    x.lineWidth = Math.max(1.6, r.width * MM_SCALE * 0.7);
+    x.beginPath();
+    r.pts.forEach((p, i) => i ? x.lineTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE) : x.moveTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE));
+    x.stroke();
+  }
+}
+function drawMinimap() {
+  if (!minimapStatic) return;
+  const cv = $('minimap'), x = cv.getContext('2d');
+  const S = cv.width;
+  x.clearRect(0, 0, S, S);
+  x.save();
+  x.translate(S/2, S/2);
+  x.rotate(player.yaw + Math.PI);                       // rotate map like GTA (up = facing)
+  const zoom = 1.35;
+  const px = (minimapStatic.width/2) + player.pos.x * MM_SCALE;
+  const pz = (minimapStatic.height/2) + player.pos.z * MM_SCALE;
+  x.scale(zoom, zoom);
+  x.drawImage(minimapStatic, -px, -pz);
+  // enemies
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    x.fillStyle = '#d84a35';
+    x.beginPath();
+    x.arc((e.grp.position.x*MM_SCALE) - px + minimapStatic.width/2,
+          (e.grp.position.z*MM_SCALE) - pz + minimapStatic.height/2, 4.2, 0, 7);
+    x.fill();
+  }
+  x.restore();
+  // player arrow (always center, pointing up)
+  x.fillStyle = '#f2ede3'; x.strokeStyle = '#111'; x.lineWidth = 2;
+  x.save(); x.translate(S/2, S/2);
+  x.beginPath(); x.moveTo(0, -11); x.lineTo(8, 9); x.lineTo(0, 4); x.lineTo(-8, 9); x.closePath();
+  x.fill(); x.stroke(); x.restore();
+}
+
+/* ---------------- STREET NAME HUD ---------------- */
+let streetT = 0;
+function updateStreetName() {
+  let best = '', bd = 26;
+  for (const r of roadPaths) {
+    if (!r.name) continue;
+    for (let i = 1; i < r.pts.length; i++) {
+      const a = r.pts[i-1], b = r.pts[i];
+      const dx = b.x-a.x, dz = b.z-a.z;
+      const t = Math.max(0, Math.min(1, ((player.pos.x-a.x)*dx + (player.pos.z-a.z)*dz) / (dx*dx+dz*dz || 1)));
+      const d = Math.hypot(player.pos.x - (a.x+dx*t), player.pos.z - (a.z+dz*t));
+      if (d < bd) { bd = d; best = r.name; }
+    }
+  }
+  if (best) $('street').textContent = best.toUpperCase();
+}
+
+/* ---------------- INPUT ---------------- */
+let joyX = 0, joyY = 0;              // virtual joystick (touch)
+let fireTouch = false;               // fire button held (touch)
+function initTouch() {
+  document.body.classList.add('touch');
+  $('touchui').style.display = 'block';
+  $('controls').innerHTML = '<b>LEFT STICK</b> move &nbsp; <b>DRAG RIGHT SIDE</b> look &nbsp; <b>FIRE</b> hold to shoot<br><b>1·2</b> switch weapon &nbsp; <b>R</b> reload &nbsp; <b>JUMP</b> jump';
+  const stick = $('stick'), knob = $('knob');
+  let joyId = null, lookId = null, lookLast = { x: 0, y: 0 };
+  const setKnob = (dx, dy) => knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+  addEventListener('touchstart', e => {
+    for (const t of e.changedTouches) {
+      if (t.target && t.target.closest && t.target.closest('.tbtn')) continue;
+      const r = stick.getBoundingClientRect();
+      if (joyId === null && t.clientX >= r.left - 24 && t.clientX <= r.right + 24 &&
+          t.clientY >= r.top - 24 && t.clientY <= r.bottom + 24) {
+        joyId = t.identifier;
+      } else if (lookId === null && t.clientX > innerWidth * 0.38) {
+        lookId = t.identifier;
+        lookLast = { x: t.clientX, y: t.clientY };
+      }
+    }
+  }, { passive: false });
+
+  addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier === joyId) {
+        const r = stick.getBoundingClientRect();
+        let dx = t.clientX - (r.left + r.width/2), dy = t.clientY - (r.top + r.height/2);
+        const m = Math.hypot(dx, dy), max = r.width / 2;
+        if (m > max) { dx *= max/m; dy *= max/m; }
+        setKnob(dx, dy);
+        joyX = dx / max; joyY = dy / max;
+      } else if (t.identifier === lookId) {
+        player.yaw   -= (t.clientX - lookLast.x) * 0.0052;
+        player.pitch -= (t.clientY - lookLast.y) * 0.0052;
+        player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch));
+        lookLast = { x: t.clientX, y: t.clientY };
+      }
+    }
+  }, { passive: false });
+
+  const endTouch = e => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === joyId) { joyId = null; joyX = 0; joyY = 0; setKnob(0, 0); }
+      if (t.identifier === lookId) lookId = null;
+    }
+  };
+  addEventListener('touchend', endTouch);
+  addEventListener('touchcancel', endTouch);
+
+  const bind = (id, down, up) => {
+    const el = $(id);
+    el.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); down(); }, { passive: false });
+    if (up) el.addEventListener('touchend', e => { e.preventDefault(); up(); }, { passive: false });
+  };
+  bind('btnFire',   () => { firing = true; fireTouch = true; shoot(); },
+                    () => { firing = false; fireTouch = false; });
+  bind('btnJump',   () => { if (player.onGround && player.alive) { player.vel.y = 5.4; player.onGround = false; } });
+  bind('btnReload', () => reload());
+  bind('btnWeapon', () => switchWeapon(1 - wIdx));
+  bind('btnPause',  () => {
+    if (!started || !player.alive) return;
+    paused = !paused;
+    $('ovtitle').textContent = 'PAUSED'; $('ovtitle').className = '';
+    $('ovsub').textContent = 'Tap to resume';
+    $('overlay').style.display = paused ? 'flex' : 'none';
+  });
+}
+
+function initInput() {
+  addEventListener('touchstart', () => lastTouchT = performance.now(), { passive: true, capture: true });
+  addEventListener('keydown', e => {
+    // don't hijack keys while typing in the search box (or before the game runs)
+    const el = document.activeElement;
+    if (!started || (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable))) return;
+    keys[e.code] = true;
+    if (e.code === 'KeyR') reload();
+    if (e.code === 'Digit1') switchWeapon(0);
+    if (e.code === 'Digit2') switchWeapon(1);
+    if (e.code === 'Space') e.preventDefault();
+  });
+  addEventListener('keyup', e => {
+    const el = document.activeElement;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    keys[e.code] = false;
+  });
+  addEventListener('mousemove', e => {
+    if (!locked) return;
+    player.yaw -= e.movementX * 0.0021;
+    player.pitch -= e.movementY * 0.0021;
+    player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch));
+  });
+  addEventListener('mousedown', e => {
+    if (!started) return;
+    if (performance.now() - lastTouchT < 700) return;   // synthetic mouse from a touch
+    if (!locked) { lockPointer(); return; }
+    if (e.button === 0) { firing = true; shoot(); }
+  });
+  addEventListener('mouseup', e => { if (e.button === 0) firing = false; });
+  document.addEventListener('pointerlockchange', () => {
+    locked = document.pointerLockElement === renderer.domElement;
+    if (locked) {
+      paused = false;
+      $('overlay').style.display = 'none';
+    } else if (started) {
+      paused = true;
+      if (player.alive) {
+        $('ovtitle').textContent = 'PAUSED'; $('ovtitle').className = '';
+        $('ovsub').textContent = 'Click to resume';
+      }
+      $('overlay').style.display = 'flex';
+    }
+  });
+  $('overlay').addEventListener('click', () => {
+    if (!player.alive) respawnPlayer();
+    if (performance.now() - lastTouchT < 700 || IS_MOBILE) { paused = false; $('overlay').style.display = 'none'; }
+    else lockPointer();
+  });
+}
+function lockPointer() {
+  renderer.domElement.requestPointerLock();
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+
+/* ---------------- MAIN LOOP ---------------- */
+let streetTimer = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  if (started && !paused) {
+    updatePlayer(dt);
+    updateEnemies(dt);
+    updateCars(dt);
+    updateSparks(dt);
+    if (cd > 0) cd -= dt;
+    if (reloading > 0) { reloading -= dt; if (reloading <= 0) finishReload(); }
+    if (firing && (WEAPONS[wIdx].auto || fireTouch)) shoot();
+    // gun recoil + sway
+    recoil = Math.max(0, recoil - dt * 8);
+    muzzle.material.opacity = Math.max(0, muzzle.material.opacity - dt * 12);
+    gun.position.z = -0.45 + recoil * 0.06;
+    gun.rotation.x = recoil * 0.12 + Math.sin(bobT) * 0.006;
+    gun.position.y = -0.2 + Math.sin(bobT * 0.5) * 0.006 - (reloading > 0 ? 0.12 : 0);
+    for (const t of waterTexList) { t.offset.x += dt * 0.010; t.offset.y += dt * 0.006; }
+    streetTimer -= dt;
+    if (streetTimer <= 0) { streetTimer = 0.5; updateStreetName(); drawMinimap(); }
+    else drawMinimap();
+  }
+  renderer.render(scene, camera);
+}
+
+/* ---------------- BOOT ---------------- */
+let pendingLabel = DEFAULT_CENTER.label;
+
+function initSearch() {
+  let acTimer = null, acSeq = 0, topHit = null;
+  const pick = h => {
+    setCenter(parseFloat(h.lat), parseFloat(h.lon));
+    pendingLabel = h.display_name.split(',').slice(0, 2).join(',');
+    $('playbtn').textContent = 'PLAY: ' + pendingLabel.toUpperCase();
+    $('loadsub').textContent = (CENTER.lat.toFixed(4) + '°, ' + CENTER.lon.toFixed(4) + '°');
+    $('addr').value = pendingLabel;
+    $('results').innerHTML = '';
+    topHit = null;
+  };
+  const renderResults = hits => {
+    $('results').innerHTML = '';
+    topHit = hits[0] || null;
+    if (!hits.length) { $('results').innerHTML = '<div class="res">No places found — keep typing</div>'; return; }
+    for (const h of hits) {
+      const div = document.createElement('div');
+      div.className = 'res';
+      const main = h.name || h.display_name.split(',')[0];
+      div.innerHTML = '<b>' + main + '</b><small>' + h.display_name + '</small>';
+      div.addEventListener('click', () => pick(h));
+      $('results').appendChild(div);
+    }
+  };
+  const run = async (quiet) => {
+    const q = $('addr').value.trim();
+    if (q.length < 3) { $('results').innerHTML = ''; topHit = null; return; }
+    const seq = ++acSeq;
+    if (!quiet) $('results').innerHTML = '<div class="res">Searching…</div>';
+    try {
+      const hits = await geocode(q);
+      if (seq !== acSeq) return;                       // a newer keystroke superseded this
+      renderResults(hits);
+    } catch (e) {
+      if (seq === acSeq && !quiet) $('results').innerHTML = '<div class="res">Search failed — check your connection</div>';
+    }
+  };
+  // autocomplete as you type (debounced to stay polite to Nominatim)
+  $('addr').addEventListener('input', () => {
+    clearTimeout(acTimer);
+    const q = $('addr').value.trim();
+    if (q.length < 3) { $('results').innerHTML = ''; topHit = null; return; }
+    acTimer = setTimeout(() => run(true), 350);
+  });
+  $('searchbtn').addEventListener('click', () => run(false));
+  $('addr').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      if (topHit) pick(topHit);
+      else run(false);
+    }
+  });
+  const cc = $('clearcache');
+  if (cc) cc.addEventListener('click', async () => {
+    cc.textContent = 'clearing…';
+    await cacheClear();
+    cc.textContent = 'saved maps cleared';
+    setTimeout(() => cc.textContent = 'clear saved maps', 2000);
+  });
+  document.querySelectorAll('.modebtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.modebtn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      GAME_MODE = btn.dataset.mode;
+    });
+  });
+  $('playbtn').addEventListener('click', () => {
+    location.hash = CENTER.lat + ',' + CENTER.lon + ',' + GAME_MODE;
+    startLoading();
+  });
+}
+
+function startLoading() {
+  $('searchphase').style.display = 'none';
+  $('bar').style.display = 'block';
+  $('loadtitle').textContent = pendingLabel.split(',')[0];
+  $('loadsub').textContent = Math.abs(CENTER.lat).toFixed(4) + '° ' + (CENTER.lat >= 0 ? 'N' : 'S')
+    + ' · ' + Math.abs(CENTER.lon).toFixed(4) + '° ' + (CENTER.lon >= 0 ? 'E' : 'W');
+  loadWorld();
+}
+
+async function boot() {
+  initThree();
+  buildGun();
+  initInput();
+  if (IS_MOBILE) initTouch();
+  initSearch();
+  $('relocate').addEventListener('click', e => {
+    e.stopPropagation();
+    location.hash = '';
+    location.reload();
+  });
+
+  // arriving via in-game relocation or a shared link: #lat,lon
+  const m = location.hash.match(/^#(-?[\d.]+),(-?[\d.]+)(?:,(explore|deathmatch))?$/);
+  if (m) {
+    setCenter(parseFloat(m[1]), parseFloat(m[2]));
+    if (m[3]) GAME_MODE = m[3];
+    pendingLabel = 'Loading…';
+    startLoading();
+  }
+  animate();
+}
+
+async function loadWorld() {
+  loadBar(0.08);
+  const namePromise = fetchAreaName();
+  const elevPromise = fetchElevation();
+
+  // 1) try the local cache first — instant, and works with every mirror down
+  loadMsg('Checking local cache…');
+  let elements = null, fromCache = false;
+  const cached = await cacheGet(CENTER.lat, CENTER.lon);
+  if (cached) {
+    elements = cached.elements;
+    fromCache = true;
+    const ageDays = Math.floor((Date.now() - cached.t) / 86400000);
+    loadMsg('Loaded from cache — instant' + (ageDays > 0 ? ' (' + ageDays + 'd old)' : ''));
+  } else {
+    // 2) not cached → fetch from Overpass (cache only after a successful build, below)
+    loadMsg('Contacting OpenStreetMap…');
+    elements = await fetchOSM();
+  }
+  const gotRealData = !!elements && !fromCache;   // eligible to cache iff fresh real fetch
+  const info = window._osmFetchInfo || {};
+
+  loadMsg('Loading real terrain elevation…');
+  await elevPromise;
+  loadBar(0.55);
+  if (elements) {
+    dataLive = true;
+    // partial success: real city, just missing a layer or two — say so quietly, no scary banner
+    if (info.failedCats && info.failedCats.length) {
+      console.warn('partial map: missing', info.failedCats.join(', '));
+    }
+  } else {
+    elements = fallbackElements();
+    $('offline').innerHTML = '⚠ COULD NOT REACH OPENSTREETMAP<br>Showing a procedural stand-in city — <b>no real street or business names</b>.<br>Every mirror was unreachable — check your connection and try again.';
+    $('offline').style.display = 'block';           // only on TOTAL fetch failure (no buildings & no roads)
+    $('loadtitle').style.color = '#e8a06a';
+  }
+
+  loadMsg('Extruding the city…');
+  await new Promise(r => setTimeout(r, 30));
+  let builtReal = false;
+  try {
+    resetWorld();
+    buildWorld(elements);
+    if (!roadPaths.length && !buildings.length) throw new Error('empty world');
+    builtReal = dataLive;                          // real data that built cleanly
+  } catch (e) {
+    console.error('REAL BUILD FAILED:', e);
+    loadMsg('Map build error (' + (e.message || e) + ') — procedural city');
+    dataLive = false;
+    $('offline').innerHTML = '⚠ MAP DATA LOADED BUT COULD NOT BE BUILT<br>Showing a procedural stand-in city instead.<br><span style="opacity:.7">(' + (e.message || e) + ')</span>';
+    $('offline').style.display = 'block';
+    try { resetWorld(); buildWorld(fallbackElements()); }
+    catch (e2) { console.error('fallback also failed', e2); }
+  }
+  // cache ONLY real data that fetched fresh AND built successfully — never a fallback
+  if (gotRealData && builtReal) cachePut(CENTER.lat, CENTER.lon, elements);
+  loadBar(0.8);
+
+  findSpawn();
+  spawnEnemies();
+  spawnCars();
+  updateAmmoHUD();
+  loadBar(1);
+
+  const area = await namePromise;
+  $('areaname').textContent = area;
+  $('loadtitle').textContent = area;
+  document.title = area + ' — Street Shooter';
+  const missNote = (window._osmFetchInfo && window._osmFetchInfo.failedCats && window._osmFetchInfo.failedCats.length)
+    ? ' · (' + window._osmFetchInfo.failedCats.join(' + ') + ' unavailable)' : '';
+  loadMsg(dataLive
+    ? buildings.length + ' buildings · ' + roadPaths.length + ' streets · ' + namedCount + ' real named businesses' + missNote
+    : 'PROCEDURAL DEMO — no real street or shop names in this mode');
+  $('startbtn').style.display = 'block';
+  $('startbtn').addEventListener('click', () => {
+    started = true;
+    $('kills').textContent = GAME_MODE === 'deathmatch' ? 'DEATHMATCH · ELIMINATIONS 0' : 'EXPLORING';
+    $('loader').style.opacity = 0;
+    setTimeout(() => $('loader').style.display = 'none', 850);
+    audio(); if (AC.state === 'suspended') AC.resume();
+    if (!IS_MOBILE) lockPointer();
+    // GTA area-card intro
+    setTimeout(() => {
+      const c = $('areacard');
+      c.style.opacity = 1; c.style.transform = 'translateY(0)';
+      setTimeout(() => { c.style.opacity = 0; c.style.transform = 'translateY(14px)'; }, 5200);
+    }, 900);
+  });
+}
+boot();
+</script>
+</body>
+</html>
