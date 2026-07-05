@@ -55,6 +55,25 @@
   #mapwrap{position:absolute;left:22px;bottom:22px;width:210px;height:210px;border-radius:50%;
     border:3px solid rgba(242,237,227,.85);box-shadow:0 6px 24px var(--shadow), inset 0 0 40px rgba(0,0,0,.5);overflow:hidden;background:#151a20}
   #minimap{width:100%;height:100%}
+  /* full-screen map overlay (press M) */
+  #fullmap{position:fixed;inset:0;z-index:44;display:none;align-items:center;justify-content:center;
+    background:rgba(8,10,14,.82);backdrop-filter:blur(4px)}
+  #fullmap.on{display:flex}
+  #fullmapinner{position:relative;width:min(88vmin,860px);height:min(88vmin,860px);
+    border:2px solid rgba(242,237,227,.45);border-radius:10px;overflow:hidden;
+    box-shadow:0 30px 90px rgba(0,0,0,.6);background:#141a20;cursor:grab}
+  #fullmapinner:active{cursor:grabbing}
+  #bigmap{width:100%;height:100%;display:block}
+  #fullmaptitle{position:absolute;top:14px;left:18px;color:#fff;font-family:Georgia,serif;font-style:italic;
+    font-size:26px;letter-spacing:1px;text-shadow:0 2px 10px #000;pointer-events:none}
+  #fullmaphint{position:absolute;top:20px;right:18px;color:var(--hud);font-size:12px;letter-spacing:1px;
+    text-shadow:0 1px 4px #000;pointer-events:none;opacity:.85}
+  #fullmaphint b{color:var(--accent)}
+  #fullmaplegend{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:16px;
+    background:rgba(10,12,18,.7);border:1px solid rgba(242,237,227,.18);border-radius:6px;padding:7px 16px;
+    font-size:12px;letter-spacing:.5px;color:var(--hud);pointer-events:none;white-space:nowrap}
+  #fullmaplegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  @media (max-width:640px){ #fullmaplegend{gap:9px;font-size:10px;padding:5px 8px} #fullmaptitle{font-size:20px} }
   #healthbar{position:absolute;left:26px;bottom:242px;width:202px;height:12px;background:rgba(0,0,0,.55);
     border:2px solid rgba(242,237,227,.75);border-radius:3px;overflow:hidden}
   #healthfill{height:100%;width:100%;background:linear-gradient(#69b34c,#4d8f37);transition:width .2s}
@@ -90,7 +109,10 @@
   #splashart svg{position:absolute;width:100%;height:100%;left:0;top:0}
   #splashScan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.08) 2px 3px);
     mix-blend-mode:multiply;opacity:.5;animation:scanDrift 8s linear infinite}
-  #splashVig{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 46%,rgba(0,0,0,0) 40%,rgba(6,8,12,.72) 100%)}
+  #splashVig{position:absolute;inset:0;background:
+    radial-gradient(ellipse 46% 52% at 50% 48%,rgba(6,8,12,.82) 0%,rgba(6,8,12,.4) 45%,rgba(6,8,12,0) 72%),
+    radial-gradient(ellipse at 50% 46%,rgba(0,0,0,0) 55%,rgba(6,8,12,.7) 100%),
+    linear-gradient(rgba(8,10,16,.28),rgba(8,10,16,.28))}
   @keyframes scanDrift{from{background-position-y:0}to{background-position-y:3px}}
   .sun{animation:sunPulse 6s ease-in-out infinite}
   @keyframes sunPulse{0%,100%{opacity:.85}50%{opacity:1}}
@@ -117,8 +139,12 @@
   @keyframes blinkB{0%,49%{opacity:.15}50%,100%{opacity:1}}
   .chopper{animation:choppy 22s linear infinite}
   @keyframes choppy{0%{transform:translate(-80px,150px)}100%{transform:translate(1360px,110px)}}
-  .rotor{transform-box:fill-box;transform-origin:center;animation:spin .12s linear infinite}
-  @keyframes spin{from{transform:scaleX(1)}50%{transform:scaleX(.2)}to{transform:scaleX(1)}}
+  .rotor{transform-box:fill-box;transform-origin:center;animation:rotorSpin .08s linear infinite}
+  @keyframes rotorSpin{0%{transform:scaleX(1)}25%{transform:scaleX(.1)}50%{transform:scaleX(1)}75%{transform:scaleX(.1)}100%{transform:scaleX(1)}}
+  .tailrotor{transform-box:fill-box;transform-origin:center;animation:tailSpin .06s linear infinite}
+  @keyframes tailSpin{0%{transform:scaleY(1)}50%{transform:scaleY(.15)}100%{transform:scaleY(1)}}
+  .rotordisc{animation:discPulse .4s ease-in-out infinite}
+  @keyframes discPulse{0%,100%{opacity:.08}50%{opacity:.16}}
   .beacon{animation:beacon 1s steps(1) infinite}
   @keyframes beacon{0%,60%{opacity:1}61%,100%{opacity:.1}}
   .hero{animation:heroIn 1.2s cubic-bezier(.2,.8,.2,1) both .35s}
@@ -130,6 +156,32 @@
   .muzzle{transform-box:fill-box;transform-origin:left center;opacity:0;animation:flash 2.6s steps(1) infinite}
   @keyframes flash{0%,39%{opacity:0;transform:scale(.4)}41%{opacity:1;transform:scale(1.1)}44%{opacity:0;transform:scale(.5)}100%{opacity:0}}
   @media (max-width:640px){ .hero{display:none} }
+  /* gangsters popping out of cover to shoot, then ducking back */
+  .gangBody{transform-box:fill-box;transform-origin:bottom left}
+  .gangL .gangBody{animation:popL 5s ease-in-out infinite}
+  .gangR .gangBody{animation:popR 6.2s ease-in-out infinite 1.4s}
+  @keyframes popL{0%,14%{transform:translateX(-46px) rotate(-6deg);opacity:.35}
+    22%,60%{transform:translateX(0) rotate(0deg);opacity:1}
+    72%,100%{transform:translateX(-46px) rotate(-6deg);opacity:.35}}
+  @keyframes popR{0%,14%{transform:translateX(46px) rotate(6deg);opacity:.35}
+    22%,60%{transform:translateX(0) rotate(0deg);opacity:1}
+    72%,100%{transform:translateX(46px) rotate(6deg);opacity:.35}}
+  .gangArm{transform-box:fill-box;transform-origin:0% 50%}
+  .gangL .gangArm{animation:garmL 5s ease-in-out infinite}
+  .gangR .gangArm{animation:garmR 6.2s ease-in-out infinite 1.4s}
+  @keyframes garmL{0%,28%,100%{transform:rotate(0)}30%{transform:rotate(-7deg)}33%{transform:rotate(-1deg)}
+    38%{transform:rotate(-7deg)}41%{transform:rotate(-1deg)}48%{transform:rotate(-6deg)}51%{transform:rotate(0)}}
+  @keyframes garmR{0%,28%,100%{transform:rotate(0)}30%{transform:rotate(7deg)}33%{transform:rotate(1deg)}
+    38%{transform:rotate(7deg)}41%{transform:rotate(1deg)}48%{transform:rotate(6deg)}51%{transform:rotate(0)}}
+  .gmuzzleL,.gmuzzleR{transform-box:fill-box;transform-origin:left center;opacity:0}
+  .gmuzzleR{transform-origin:right center}
+  .gmuzzleL{animation:gflashL 5s steps(1) infinite}
+  .gmuzzleR{animation:gflashR 6.2s steps(1) infinite 1.4s}
+  @keyframes gflashL{0%,28%{opacity:0;transform:scale(.4)}30%{opacity:1;transform:scale(1.1)}32%{opacity:0}
+    37%{opacity:1;transform:scale(1)}39%{opacity:0}47%{opacity:1;transform:scale(1.1)}49%{opacity:0}100%{opacity:0}}
+  @keyframes gflashR{0%,28%{opacity:0;transform:scale(.4)}30%{opacity:1;transform:scale(1.1)}32%{opacity:0}
+    37%{opacity:1;transform:scale(1)}39%{opacity:0}47%{opacity:1;transform:scale(1.1)}49%{opacity:0}100%{opacity:0}}
+  @media (max-width:640px){ .gang{display:none} }
   @media (prefers-reduced-motion:reduce){ #splashart *{animation:none!important} }
   /* menu content floats above the art */
   #loader>*:not(#splashart){position:relative;z-index:1}
@@ -202,6 +254,37 @@
   #joinbtn:hover{filter:brightness(1.1)}
   #joinbtn:disabled{opacity:.5;cursor:default}
   #joinstatus{margin-top:16px;color:#a9a294;font-size:13px;letter-spacing:1px;min-height:18px}
+  /* private/public toggle */
+  #privacyrow{display:flex;gap:8px;margin-top:12px;width:100%}
+  .privbtn{flex:1;pointer-events:auto;cursor:pointer;background:rgba(10,12,18,.55);color:#c8c2b4;
+    border:1px solid rgba(242,237,227,.2);border-radius:5px;padding:9px 6px;font-weight:800;font-size:12px;
+    letter-spacing:1px;display:flex;flex-direction:column;gap:3px;transition:all .15s}
+  .privbtn span{font-weight:500;font-size:10px;letter-spacing:.3px;color:#9a9488;text-transform:none}
+  .privbtn:hover{border-color:rgba(242,237,227,.45)}
+  .privbtn.active{border-color:var(--accent);background:rgba(232,176,75,.15);color:#fff}
+  .privbtn.active span{color:#e8d4a8}
+  /* join tabs */
+  #jointabs{display:flex;gap:4px;margin-bottom:16px;background:rgba(10,12,18,.5);border-radius:6px;padding:4px}
+  .jointab{flex:1;pointer-events:auto;cursor:pointer;background:transparent;color:#a9a294;border:none;
+    border-radius:4px;padding:9px;font-weight:700;font-size:12px;letter-spacing:1.5px;transition:all .15s}
+  .jointab.active{background:rgba(232,176,75,.16);color:#fff}
+  #jname2{width:100%;padding:11px 14px;font-size:14px;border-radius:4px;margin-bottom:12px;
+    border:1px solid rgba(242,237,227,.3);background:rgba(10,12,18,.7);color:var(--hud);outline:none;letter-spacing:.5px}
+  #jname2:focus{border-color:var(--accent)}
+  #matchlist{width:100%;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+  .matchempty{color:#8a8478;font-size:13px;text-align:center;padding:26px 0;letter-spacing:.5px}
+  .matchrow{display:flex;align-items:center;gap:10px;pointer-events:auto;cursor:pointer;text-align:left;
+    background:rgba(20,24,32,.7);border:1px solid rgba(242,237,227,.14);border-radius:7px;padding:11px 13px;transition:all .15s}
+  .matchrow:hover{border-color:var(--accent);background:rgba(232,176,75,.1)}
+  .matchrow .mi{flex:1;min-width:0}
+  .matchrow .mloc{color:#f2ede3;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .matchrow .mmeta{color:#a9a294;font-size:11px;letter-spacing:.5px;margin-top:2px}
+  .matchrow .mmode{font-size:11px;font-weight:800;letter-spacing:1px;padding:3px 8px;border-radius:4px;white-space:nowrap}
+  .matchrow .mmode.explore{background:rgba(90,140,90,.28);color:#a8e0a0}
+  .matchrow .mmode.deathmatch{background:rgba(180,60,50,.3);color:#f0a098}
+  .matchrow .mcount{color:var(--accent);font-weight:800;font-size:15px;white-space:nowrap}
+  .matchrow .mcode{font-family:Georgia,serif;color:#8a8478;font-size:11px;letter-spacing:2px}
+  #browsestatus{margin-top:12px;color:#8a8478;font-size:12px;letter-spacing:.5px;min-height:16px;text-align:center}
   /* in-game */
   #roomcode{position:absolute;top:16px;left:50%;transform:translateX(-50%);pointer-events:none;
     background:rgba(10,12,18,.6);border:1px solid rgba(232,176,75,.5);border-radius:6px;padding:6px 16px;
@@ -277,14 +360,27 @@
       <polygon class="panel panelR" points="1280,0 1280,300 980,800 1280,800" fill="url(#panelA)" opacity="0.9"/>
       <polygon class="panel panelL" points="0,800 0,560 210,800" fill="#c8402f" opacity="0.85"/>
 
-      <!-- circling chopper -->
+      <!-- circling chopper (nose leads to the right, matching travel direction) -->
       <g class="chopper">
         <g transform="translate(0,0)">
-          <ellipse cx="0" cy="0" rx="16" ry="6" fill="#1a1c22"/>
-          <rect x="-3" y="-2" width="26" height="4" fill="#1a1c22"/>
-          <ellipse cx="24" cy="0" rx="3" ry="7" fill="#1a1c22"/>
-          <rect x="-18" y="-1.2" width="40" height="2.4" fill="#0e0f14" class="rotor"/>
-          <circle cx="-6" cy="0" r="2.4" fill="#ffd27a" class="beacon"/>
+          <!-- tail boom to the LEFT, nose to the RIGHT -->
+          <rect x="-30" y="-2" width="30" height="4" rx="2" fill="#1a1c22"/>
+          <!-- tail fin + tail rotor -->
+          <path d="M-30 -2 L-36 -9 L-30 -2 Z" fill="#14161c"/>
+          <rect x="-34" y="-9" width="2.4" height="14" fill="#0e0f14" class="tailrotor"/>
+          <!-- cabin (nose bulge to the right) -->
+          <ellipse cx="6" cy="0" rx="17" ry="7.5" fill="#1a1c22"/>
+          <ellipse cx="15" cy="-1" rx="6" ry="4.5" fill="#3a4a5e"/> <!-- windscreen -->
+          <!-- skids -->
+          <rect x="-6" y="8" width="30" height="1.6" fill="#0e0f14"/>
+          <rect x="-2" y="6" width="1.6" height="3" fill="#0e0f14"/><rect x="18" y="6" width="1.6" height="3" fill="#0e0f14"/>
+          <!-- rotor mast + spinning main rotor disc -->
+          <rect x="4" y="-11" width="2.4" height="5" fill="#0e0f14"/>
+          <g class="rotor" transform="translate(5,-11)">
+            <rect x="-34" y="-1.1" width="68" height="2.2" rx="1" fill="#0e0f14"/>
+          </g>
+          <ellipse class="rotordisc" cx="5" cy="-11" rx="34" ry="4" fill="#c0c4cc" opacity="0.12"/>
+          <circle cx="-8" cy="0" r="2.2" fill="#ffd27a" class="beacon"/>
         </g>
       </g>
 
@@ -295,6 +391,49 @@
       <rect x="0" y="700" width="1280" height="100" fill="#20232b"/>
       <g class="laneDash" stroke="#d8c98a" stroke-width="5" stroke-dasharray="34 30" opacity="0.7">
         <line x1="-40" y1="752" x2="1320" y2="752"/>
+      </g>
+
+      <!-- GANGSTERS popping out of cover to fire, then ducking back -->
+      <!-- left gangster leaning out from behind the near building edge -->
+      <g class="gang gangL" transform="translate(300,600)">
+        <g class="gangBody">
+          <!-- torso leaning right out of cover -->
+          <path d="M-6 40 Q-2 8 22 10 L26 60 Q4 66 -8 58 Z" fill="#2b3340"/>
+          <circle cx="10" cy="0" r="15" fill="#c98d5a"/>
+          <path d="M-4 -6 Q10 -20 26 -4 L24 -8 Q10 -18 -2 -8 Z" fill="#16181d"/>  <!-- cap/hair -->
+          <rect x="4" y="-4" width="16" height="6" rx="3" fill="#14161c"/>          <!-- shades -->
+          <!-- arm + pistol reaching right -->
+          <g class="gangArm">
+            <path d="M18 18 L54 26 L50 38 L16 32 Z" fill="#333c4a"/>
+            <circle cx="54" cy="32" r="8" fill="#c98d5a"/>
+            <rect x="56" y="26" width="26" height="8" rx="2" fill="#23262b"/>
+            <rect x="58" y="33" width="8" height="12" rx="2" fill="#2e2419"/>
+            <g transform="translate(84,29)"><g class="gmuzzleL">
+              <polygon points="0,-8 22,0 0,8 7,0" fill="#ffd27a"/>
+              <polygon points="0,-4 12,0 0,4" fill="#fff6d8"/>
+            </g></g>
+          </g>
+        </g>
+      </g>
+
+      <!-- right gangster leaning out (mirrored), different timing -->
+      <g class="gang gangR" transform="translate(880,620)">
+        <g class="gangBody">
+          <path d="M6 40 Q2 8 -22 10 L-26 60 Q-4 66 8 58 Z" fill="#3a2b3a"/>
+          <circle cx="-10" cy="0" r="15" fill="#b57848"/>
+          <path d="M4 -6 Q-10 -22 -26 -4 L-24 -8 Q-10 -18 2 -8 Z" fill="#201014"/>
+          <rect x="-20" y="-4" width="16" height="6" rx="3" fill="#14161c"/>
+          <g class="gangArm gangArmR">
+            <path d="M-18 18 L-54 26 L-50 38 L-16 32 Z" fill="#4a2f42"/>
+            <circle cx="-54" cy="32" r="8" fill="#b57848"/>
+            <rect x="-82" y="26" width="26" height="8" rx="2" fill="#23262b"/>
+            <rect x="-66" y="33" width="8" height="12" rx="2" fill="#2e2419"/>
+            <g transform="translate(-84,29)"><g class="gmuzzleR">
+              <polygon points="0,-8 -22,0 0,8 -7,0" fill="#ffd27a"/>
+              <polygon points="0,-4 -12,0 0,4" fill="#fff6d8"/>
+            </g></g>
+          </g>
+        </g>
       </g>
 
       <!-- cop car with blinking lights -->
@@ -337,10 +476,12 @@
             <rect x="95" y="91" width="38" height="11" rx="2" fill="#23262b"/>
             <rect x="97" y="100" width="11" height="18" rx="2" fill="#3a2e22"/>
             <rect x="129" y="93" width="11" height="6" fill="#2a2d32"/>
-            <!-- muzzle flash -->
-            <g class="muzzle" transform="translate(142,96)">
-              <polygon points="0,-10 30,0 0,10 9,0" fill="#ffd27a"/>
-              <polygon points="0,-5 16,0 0,5" fill="#fff6d8"/>
+            <!-- muzzle flash: outer group positions at the barrel, inner group animates -->
+            <g transform="translate(146,96)">
+              <g class="muzzle">
+                <polygon points="0,-10 30,0 0,10 9,0" fill="#ffd27a"/>
+                <polygon points="0,-5 16,0 0,5" fill="#fff6d8"/>
+              </g>
             </g>
           </g>
         </g>
@@ -374,15 +515,30 @@
       </button>
     </div>
     <input id="pname" type="text" maxlength="14" placeholder="Your name (optional)" autocomplete="off">
+    <div id="privacyrow" style="display:none">
+      <button class="privbtn active" data-priv="private">🔒 PRIVATE<span>invite by code only</span></button>
+      <button class="privbtn" data-priv="public">🌍 PUBLIC<span>listed in Active Matches</span></button>
+    </div>
     <button id="playbtn">PLAY: VASASTAN, STOCKHOLM</button>
     <div id="cachenote">Visited places are saved locally and load instantly next time · <span id="clearcache">clear saved maps</span></div>
   </div>
   <div id="joinphase">
-    <div id="joinlabel">Enter the 4-letter code from your host</div>
-    <input id="joincode" type="text" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters">
-    <input id="jname" type="text" maxlength="14" placeholder="Your name (optional)" autocomplete="off">
-    <button id="joinbtn">JOIN GAME</button>
-    <div id="joinstatus"></div>
+    <div id="jointabs">
+      <button class="jointab active" data-jt="code">ENTER CODE</button>
+      <button class="jointab" data-jt="browse">ACTIVE MATCHES</button>
+    </div>
+    <div id="jtcode">
+      <div id="joinlabel">Enter the 4-letter code from your host</div>
+      <input id="joincode" type="text" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters">
+      <input id="jname" type="text" maxlength="14" placeholder="Your name (optional)" autocomplete="off">
+      <button id="joinbtn">JOIN GAME</button>
+      <div id="joinstatus"></div>
+    </div>
+    <div id="jtbrowse" style="display:none">
+      <input id="jname2" type="text" maxlength="14" placeholder="Your name (optional)" autocomplete="off">
+      <div id="matchlist"><div class="matchempty">Searching for public games…</div></div>
+      <div id="browsestatus"></div>
+    </div>
   </div>
   <div id="bar"><div id="barfill"></div></div>
   <div id="loadmsg">Search anywhere on Earth — or play the default: Vasastan, Stockholm</div>
@@ -390,7 +546,7 @@
   <button id="startbtn">ENTER THE CITY</button>
   <div id="controls">
     <b>WASD</b> move &nbsp; <b>MOUSE</b> look &nbsp; <b>LMB</b> fire &nbsp; <b>R</b> reload<br>
-    <b>SHIFT</b> sprint &nbsp; <b>SPACE</b> jump &nbsp; <b>1-5</b> weapons &nbsp; <b>ESC</b> pause
+    <b>SHIFT</b> sprint &nbsp; <b>SPACE</b> jump &nbsp; <b>1-5</b> weapons &nbsp; <b>M</b> map &nbsp; <b>ESC</b> pause
   </div>
 </div>
 
@@ -401,6 +557,21 @@
   <div id="armorlabel">HEALTH</div>
   <div id="healthbar"><div id="healthfill"></div></div>
   <div id="mapwrap"><canvas id="minimap" width="420" height="420"></canvas></div>
+  <div id="fullmap">
+    <div id="fullmapinner">
+      <canvas id="bigmap"></canvas>
+      <div id="fullmaptitle">CITY MAP</div>
+      <div id="fullmaphint">press <b>M</b> or <b>ESC</b> to close &nbsp;·&nbsp; scroll to zoom</div>
+      <div id="fullmaplegend">
+        <span><i style="background:#f2ede3"></i>You</span>
+        <span><i style="background:#d84a35"></i>Enemy</span>
+        <span><i style="background:#3fbf5a"></i>Medkit</span>
+        <span><i style="background:#e8c24a"></i>Ammo</span>
+        <span><i style="background:#9a8a6a"></i>Church</span>
+        <span><i style="background:#c85a48"></i>Fuel</span>
+      </div>
+    </div>
+  </div>
   <div id="ammo">
     <div class="wname" id="wname">PISTOL</div>
     <div class="num"><span id="mag">12</span><small> / <span id="reserve">96</span></small></div>
@@ -609,6 +780,7 @@ function osmQueries() {
   return {
     buildings: `[out:json][timeout:30];(way["building"](${bb});relation["building"](${bb}););out geom;`,
     roads:     `[out:json][timeout:30];(way["highway"](${bb});` +
+               `way["railway"~"^(rail|light_rail|subway|tram|narrow_gauge|preserved|funicular)$"](${bb});` +
                `way["leisure"~"park|garden|playground|pitch|common"](${bb});` +
                `way["landuse"~"grass|forest|cemetery|recreation_ground|village_green"](${bb});` +
                `way["natural"="wood"](${bb}););out geom;`,
@@ -739,6 +911,9 @@ async function fetchAreaName() {
     const local = a.suburb || a.neighbourhood || a.city_district || a.quarter || a.village || a.town || a.city || 'Unknown District';
     const wide = [a.city || a.town || a.municipality, a.country].filter(Boolean).join(' · ').toUpperCase();
     if (wide) $('areasmall').textContent = wide;
+    // for the public lobby: a friendly "District, City" label
+    const city = a.city || a.town || a.municipality || a.village || '';
+    net.locName = [local, city].filter(Boolean).filter((v,i,arr)=>arr.indexOf(v)===i).join(', ');
     return local;
   } catch (e) { return 'The Streets'; }
 }
@@ -996,6 +1171,8 @@ const roadPaths = [];        // { pts:[{x,z}], type, name, width }
 const raycastTargets = [];   // meshes bullets can hit
 const treeSpots = [];
 const bridgeDecks = [];      // { pts, deckYs, halfW } — walkable ramped bridge surfaces
+const railLines = [];        // { pts, kind } — for spawning moving trains
+const trains = [];           // active moving trains
 const shops = [];            // { x, z, name, type }
 const waterPolys = [];       // { outer, holes, aabb, level } — swim/no-walk zones
 const wayWater = [], coastSegs = [], waterRels = [];
@@ -1524,17 +1701,24 @@ function stitchRings(members, role) {
 
 /* ---------------- BUILDING ARCHETYPES ---------------- */
 // classify each footprint from OSM tags + size + height into a visual archetype
-const TOWER_TAGS = /^(commercial|office|hotel|tower|skyscraper)$/;
-const FLATS_TAGS = /^(apartments|residential|dormitory)$/;
-const HOUSE_TAGS = /^(house|semidetached_house|terrace|townhouse|bungalow)$/;
-const VILLA_TAGS = /^(detached|villa|cabin|farm|cottage)$/;
-const CIVIC_TAGS = /^(church|cathedral|chapel|mosque|synagogue|temple|civic|public|government|university|college|hospital|train_station|museum)$/;
-const INDUS_TAGS = /^(industrial|warehouse|factory|manufacture|hangar)$/;
-const OUT_TAGS   = /^(garage|garages|shed|roof|kiosk|hut|carport|greenhouse|conservatory|service)$/;
+const TOWER_TAGS = /^(commercial|office|hotel)$/;
+const FLATS_TAGS = /^(apartments|residential|dormitory|terrace)$/;
+const HOUSE_TAGS = /^(house|semidetached_house|houseboat|static_caravan|terrace)$/;
+const VILLA_TAGS = /^(detached|villa|cabin|bungalow|farm|farmhouse|cottage|hut|chalet)$/;
+const CHURCH_TAGS = /^(church|cathedral|chapel|basilica|minster|mosque|synagogue|temple|shrine|monastery|presbytery|religious)$/;
+const CIVIC_TAGS = /^(civic|public|government|governmental|university|college|school|kindergarten|hospital|train_station|transportation|museum|library|courthouse|townhall|fire_station|police|stadium|sports_hall|sports_centre|grandstand|pavilion|castle|palace|bunker)$/;
+const INDUS_TAGS = /^(industrial|warehouse|factory|manufacture|hangar|storage_tank|silo|digester|slurry_tank|works)$/;
+const STATION_TAGS = /^(fuel|service_station)$/;   // petrol stations (canopy)
+const RETAIL_TAGS = /^(retail|supermarket|kiosk|shop|mall|department_store)$/;
+const OUT_TAGS   = /^(garage|garages|shed|roof|carport|greenhouse|conservatory|service|barn|stable|sty|cowshed|farm_auxiliary|allotment_house|boathouse|container|tent|toilets|ruins)$/;
 
 function classifyBuilding(tags, area, levels, h) {
   const b = tags.building || 'yes';
-  if (CIVIC_TAGS.test(b) || tags.amenity === 'place_of_worship') return 'civic';
+  const amen = tags.amenity || '';
+  // petrol stations: tagged building=fuel, or a building on an amenity=fuel node/way
+  if (STATION_TAGS.test(b) || amen === 'fuel') return 'station';
+  if (CHURCH_TAGS.test(b) || amen === 'place_of_worship' || tags.religion) return 'church';
+  if (CIVIC_TAGS.test(b)) return 'civic';
   if (OUT_TAGS.test(b))   return 'outbuilding';
   if (INDUS_TAGS.test(b)) return 'industrial';
   // glass tower ONLY when genuinely tall — never just because it's tagged commercial/office
@@ -1542,11 +1726,11 @@ function classifyBuilding(tags, area, levels, h) {
   if (VILLA_TAGS.test(b)) return 'villa';
   if (HOUSE_TAGS.test(b)) return 'townhouse';
   // commercial / office / retail that ISN'T a highrise → ordinary masonry block with shopfronts
-  if (TOWER_TAGS.test(b) || /^(retail|supermarket|kiosk)$/.test(b)) return 'commercial';
+  if (TOWER_TAGS.test(b) || RETAIL_TAGS.test(b)) return 'commercial';
   // 'residential'/'apartments' — infer house vs block from size, since 'residential'
   // is used for both detached houses and apartment blocks
   if (FLATS_TAGS.test(b)) {
-    if (b !== 'apartments' && b !== 'dormitory') {   // generic 'residential'
+    if (b !== 'apartments' && b !== 'dormitory') {   // generic 'residential'/'terrace'
       if (area < 160 && levels <= 3) return 'villa';
       if (area < 340 && levels <= 3) return 'townhouse';
     }
@@ -1558,60 +1742,180 @@ function classifyBuilding(tags, area, levels, h) {
   return 'flats';
 }
 
-function buildingHeight(tags, nB) {
+function buildingHeight(tags, nB, kind) {
   const b = tags.building || 'yes';
   let lv = tags['building:levels'] ? parseFloat(tags['building:levels']) : 0;
   let h = 0;
   if (tags.height) h = parseFloat(tags.height) || 0;
   else if (lv) h = lv * 3.3 + 1.2;
   if (!h) {
-    if (VILLA_TAGS.test(b))      h = 6 + rnd() * 2.5;
-    else if (HOUSE_TAGS.test(b)) h = 7 + rnd() * 3;
-    else if (INDUS_TAGS.test(b)) h = 8 + rnd() * 5;
-    else if (OUT_TAGS.test(b))   h = 3 + rnd() * 1.5;
-    else if (/^(commercial|office|retail|supermarket|hotel)$/.test(b)) h = 11 + rnd() * 8; // 3–6 floors, high-street scale
+    // no explicit size in the data — size to the classified archetype so an untagged
+    // house-sized footprint gets a house height, not a tall stenstad default.
+    if (kind === 'station')          h = 3.2;
+    else if (kind === 'church')      h = 12 + rnd() * 6;
+    else if (kind === 'villa')       h = 8.5 + rnd() * 1.8;   // 2-storey villa incl. pitched roof
+    else if (kind === 'townhouse')   h = 7.5 + rnd() * 3;
+    else if (kind === 'outbuilding') h = 3 + rnd() * 1.5;
+    else if (kind === 'industrial')  h = 8 + rnd() * 5;
+    else if (kind === 'commercial')  h = 11 + rnd() * 8;
+    else if (kind === 'civic')       h = 14 + rnd() * 6;
+    else if (kind === 'tower')       h = 40 + rnd() * 30;
+    // fall back to tag-based guess if kind wasn't supplied
+    else if (STATION_TAGS.test(b) || tags.amenity === 'fuel') h = 3.2;
+    else if (CHURCH_TAGS.test(b)) h = 12 + rnd() * 6;
+    else if (VILLA_TAGS.test(b))  h = 8.5 + rnd() * 1.8;
+    else if (HOUSE_TAGS.test(b))  h = 7.5 + rnd() * 3;
+    else if (INDUS_TAGS.test(b))  h = 8 + rnd() * 5;
+    else if (OUT_TAGS.test(b))    h = 3 + rnd() * 1.5;
+    else if (/^(commercial|office|retail|supermarket|hotel)$/.test(b)) h = 11 + rnd() * 8;
     else h = 16 + rnd() * 9;                              // stenstad default 5–7 floors
   }
-  if (CIVIC_TAGS.test(b) || tags.amenity === 'place_of_worship') h = Math.max(h, 24);
+  if (CHURCH_TAGS.test(b) || tags.amenity === 'place_of_worship') h = Math.max(h, 13);
+  else if (CIVIC_TAGS.test(b)) h = Math.max(h, 16);
   if (OUT_TAGS.test(b)) h = Math.min(h, 4.5);
+  if (STATION_TAGS.test(b) || tags.amenity === 'fuel') h = Math.min(h, 4);
   return h;
 }
 
 let _bMats = null;   // set in buildWorld
 function pickMat(list, nB) { return list[(nB * 7 + Math.floor(rnd()*list.length)) % list.length]; }
 
-function roofRise(poly) {
+// A church gets a bell tower + tall spire at one end of its footprint.
+function addChurchSpire(poly, baseY, roofPeakY, roofMat) {
   let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9;
   for (const p of poly) { minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z); }
-  return Math.min(Math.min(maxX-minX, maxZ-minZ) * 0.42, 3.8);
-}
-function addPitchedRoof(poly, baseY, wallTop, roofMat, riseOverride) {
-  // simple gable roof spanning the footprint's bounding box, ridge along the long axis
-  let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9;
-  for (const p of poly) { minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z); }
-  const w = maxX-minX, d = maxZ-minZ, cx=(minX+maxX)/2, cz=(minZ+maxZ)/2;
+  const w = maxX-minX, d = maxZ-minZ;
   const alongX = w >= d;
+  // tower sits over one gable end
+  const tw = Math.min(alongX ? d : w, 6) * 0.7;
+  const tx = alongX ? minX + tw*0.7 : (minX+maxX)/2;
+  const tz = alongX ? (minZ+maxZ)/2 : minZ + tw*0.7;
+  const towerH = (roofPeakY - baseY) + 4 + Math.min(w, d) * 0.4;
+  const stone = new THREE.MeshLambertMaterial({ color: 0xcabfa2 });
+  const tower = new THREE.Mesh(new THREE.BoxGeometry(tw, towerH, tw), stone);
+  tower.position.set(tx, baseY + towerH/2, tz);
+  tower.castShadow = QUALITY.shadows; worldGroup.add(tower); raycastTargets.push(tower);
+  // spire (pyramid)
+  const spireH = tw * 2.2;
+  const spire = new THREE.Mesh(new THREE.ConeGeometry(tw*0.72, spireH, 4), roofMat);
+  spire.rotation.y = Math.PI/4;
+  spire.position.set(tx, baseY + towerH + spireH/2, tz);
+  spire.castShadow = QUALITY.shadows; worldGroup.add(spire);
+  // cross on top
+  const cm = new THREE.MeshLambertMaterial({ color: 0x8a7a4a });
+  const cv = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.1, 0.12), cm);
+  cv.position.set(tx, baseY + towerH + spireH + 0.5, tz);
+  const ch = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.12, 0.12), cm);
+  ch.position.set(tx, baseY + towerH + spireH + 0.65, tz);
+  worldGroup.add(cv, ch);
+}
+
+// A petrol station gets a wide flat canopy on slim pillars over the forecourt.
+function addStationCanopy(poly, baseY, area) {
+  let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9;
+  for (const p of poly) { minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z); }
+  const cx=(minX+maxX)/2, cz=(minZ+maxZ)/2;
+  // canopy sits beside the shop, sized to the footprint (or a sensible default for tiny shops)
+  const cw = Math.max(maxX-minX, 12) * 1.1, cd = Math.max(maxZ-minZ, 9) * 1.1;
+  const offset = (maxX-minX) + cw*0.4;              // place forecourt to one side
+  const px = cx + offset, cyH = baseY + 4.6;
+  const white = new THREE.MeshLambertMaterial({ color: 0xe8e6e0 });
+  const red = new THREE.MeshLambertMaterial({ color: 0xc8402f });
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(cw, 0.5, cd), white);
+  slab.position.set(px, cyH, cz); slab.castShadow = QUALITY.shadows;
+  worldGroup.add(slab); raycastTargets.push(slab);
+  const band = new THREE.Mesh(new THREE.BoxGeometry(cw+0.1, 0.32, cd+0.1), red);
+  band.position.set(px, cyH - 0.35, cz); worldGroup.add(band);
+  // four pillars
+  const pm = new THREE.MeshLambertMaterial({ color: 0xb8b4ac });
+  for (const sx of [-1,1]) for (const sz of [-1,1]) {
+    const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 4.6, 8), pm);
+    pil.position.set(px + sx*cw*0.36, baseY + 2.3, cz + sz*cd*0.36);
+    pil.castShadow = QUALITY.shadows; worldGroup.add(pil);
+  }
+  // two fuel pumps under the canopy
+  const pumpM = new THREE.MeshLambertMaterial({ color: 0x3a4652 });
+  for (const sx of [-0.5, 0.5]) {
+    const pump = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.9, 1.1), pumpM);
+    pump.position.set(px + sx*cw*0.3, baseY + 0.95, cz);
+    worldGroup.add(pump); raycastTargets.push(pump);
+  }
+}
+
+function roofRise(poly) {
+  // rise from the footprint's oriented short span so it matches the OBB roof
+  let bestAng = 0, bestLen = -1;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i+1) % poly.length];
+    const len = Math.hypot(b.x-a.x, b.z-a.z);
+    if (len > bestLen) { bestLen = len; bestAng = Math.atan2(b.z-a.z, b.x-a.x); }
+  }
+  const ca = Math.cos(-bestAng), sa = Math.sin(-bestAng);
+  let uMin=1e9,uMax=-1e9,vMin=1e9,vMax=-1e9;
+  for (const p of poly) { const u=p.x*ca-p.z*sa, v=p.x*sa+p.z*ca;
+    uMin=Math.min(uMin,u);uMax=Math.max(uMax,u);vMin=Math.min(vMin,v);vMax=Math.max(vMax,v); }
+  const shortSpan = Math.min(uMax-uMin, vMax-vMin);
+  return Math.min(shortSpan * 0.42, 3.8);
+}
+// gable roof aligned to the footprint's dominant edge direction (not the world-axis bbox,
+// which skews on angled or non-rectangular houses). Uses an oriented bounding box.
+function addPitchedRoof(poly, baseY, wallTop, roofMat, riseOverride) {
+  // 1) find the dominant edge direction (longest total edge length per angle bucket)
+  let bestAng = 0, bestLen = -1;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i+1) % poly.length];
+    const dx = b.x - a.x, dz = b.z - a.z;
+    const len = Math.hypot(dx, dz);
+    if (len > bestLen) { bestLen = len; bestAng = Math.atan2(dz, dx); }
+  }
+  const ca = Math.cos(-bestAng), sa = Math.sin(-bestAng);   // rotate world→local
+  const cb = Math.cos(bestAng), sb = Math.sin(bestAng);     // rotate local→world
+  // 2) oriented bounding box in the rotated frame
+  let uMin=1e9,uMax=-1e9,vMin=1e9,vMax=-1e9;
+  for (const p of poly) {
+    const u = p.x*ca - p.z*sa, v = p.x*sa + p.z*ca;
+    uMin=Math.min(uMin,u);uMax=Math.max(uMax,u);vMin=Math.min(vMin,v);vMax=Math.max(vMax,v);
+  }
+  const uLen = uMax-uMin, vLen = vMax-vMin;
   const rise = riseOverride !== undefined ? riseOverride : roofRise(poly);
+  // ridge runs along the LONGER OBB side
+  const ridgeAlongU = uLen >= vLen;
   const T = wallTop;
-  // corners + ridge endpoints
-  const A=[minX,T,minZ], B=[maxX,T,minZ], C=[maxX,T,maxZ], D=[minX,T,maxZ];
-  const R1 = alongX ? [minX,T+rise,cz] : [cx,T+rise,minZ];
-  const R2 = alongX ? [maxX,T+rise,cz] : [cx,T+rise,maxZ];
+  // helper: local (u,v) → world (x,z)
+  const w2 = (u, v) => [u*cb - v*sb, u*sb + v*cb];
+  const P = (u, v, y) => { const [x,z] = w2(u,v); return [x, y, z]; };
+
+  const uc = (uMin+uMax)/2, vc = (vMin+vMax)/2;
+  const A = P(uMin, vMin, T), B = P(uMax, vMin, T), C = P(uMax, vMax, T), D = P(uMin, vMax, T);
+  const R1 = ridgeAlongU ? P(uMin, vc, T+rise) : P(uc, vMin, T+rise);
+  const R2 = ridgeAlongU ? P(uMax, vc, T+rise) : P(uc, vMax, T+rise);
+
   const pos = [];
   const tri = (p,q,r) => pos.push(p[0],p[1],p[2], q[0],q[1],q[2], r[0],r[1],r[2]);
-  if (alongX) {
-    tri(A,B,R2); tri(A,R2,R1);      // front slope
-    tri(D,R1,R2); tri(D,R2,C);      // back slope
-    tri(A,R1,D);                    // west gable
-    tri(B,C,R2);                    // east gable
+  if (ridgeAlongU) {
+    tri(A,B,R2); tri(A,R2,R1);      // front slope (vMin side)
+    tri(D,R1,R2); tri(D,R2,C);      // back slope (vMax side)
+    tri(A,R1,D);                    // gable (uMin end)
+    tri(B,C,R2);                    // gable (uMax end)
   } else {
-    tri(A,B,R1); tri(B,R2,R1);      // slope 1
-    tri(D,R1,R2); tri(D,R2,C);      // slope 2
-    tri(A,R1,D);                    // gable
-    tri(B,C,R2);                    // gable
+    tri(A,B,R1); tri(B,R2,R1);      // slope (uMin→uMax on vMin)
+    tri(D,R1,R2); tri(D,R2,C);      // opposite slope
+    tri(A,R1,D);                    // gable (vMin end)... using ridge endpoints
+    tri(B,C,R2);
   }
+  // small eave overhang so the roof reads as sitting ON the walls, not floating inside them
   const rg = new THREE.BufferGeometry();
   rg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  // ensure every triangle's normal points away from the roof interior: flip any facing down
+  const arr = rg.getAttribute('position').array;
+  for (let i = 0; i < arr.length; i += 9) {
+    const ax=arr[i],ay=arr[i+1],az=arr[i+2], bx=arr[i+3],by=arr[i+4],bz=arr[i+5], cxx=arr[i+6],cyy=arr[i+7],czz=arr[i+8];
+    const ux=bx-ax,uy=by-ay,uz=bz-az, vx=cxx-ax,vy=cyy-ay,vz=czz-az;
+    const ny = uz*vx - ux*vz;                         // y component of cross(u,v)
+    // slopes should face upward (ny>0); gables face sideways (leave those). Flip clearly-downward faces.
+    if (ny < -0.001) { arr[i+3]=cxx;arr[i+4]=cyy;arr[i+5]=czz; arr[i+6]=bx;arr[i+7]=by;arr[i+8]=bz; }
+  }
+  rg.getAttribute('position').needsUpdate = true;
   rg.computeVertexNormals();
   const roof = new THREE.Mesh(rg, roofMat);
   roof.castShadow = QUALITY.shadows; roof.receiveShadow = QUALITY.shadows;
@@ -1643,9 +1947,13 @@ function addBuilding(outer, holes, tags, nB) {
     if (poly.length < 3) return false;
     const area = Math.abs(polyArea(poly));
     if (area < 12) return false;
-    const h = buildingHeight(tags, nB);
-    const levels = tags['building:levels'] ? parseFloat(tags['building:levels']) : Math.round((h-1.2)/3.3);
-    const kind = classifyBuilding(tags, area, levels, h);
+    // classify from EXPLICIT tags only (0 when absent) so an untagged small footprint
+    // is judged by size, not by a tall default height — then size the building to its kind.
+    const explicitLevels = tags['building:levels'] ? parseFloat(tags['building:levels']) : 0;
+    const explicitH = tags.height ? (parseFloat(tags.height) || 0) : 0;
+    const kind = classifyBuilding(tags, area, explicitLevels, explicitH);
+    const h = buildingHeight(tags, nB, kind);
+    const levels = explicitLevels || Math.round((h - 1.2) / 3.3);
 
     const shape = new THREE.Shape(poly.map(p => new THREE.Vector2(p.x, -p.z)));
     for (const hole of (holes || [])) {
@@ -1657,7 +1965,7 @@ function addBuilding(outer, holes, tags, nB) {
     for (const p of poly) eMin = Math.min(eMin, elevAt(p.x, p.z));
 
     // pitched-roof archetypes get walls a touch shorter, then a real gable on top
-    const pitched = (kind === 'townhouse' || kind === 'villa' || kind === 'outbuilding');
+    const pitched = (kind === 'townhouse' || kind === 'villa' || kind === 'outbuilding' || kind === 'church');
     // for pitched types the gable is PART of the total height h, not stacked on top —
     // so walls stop short by the ridge rise and the roof brings the peak up to h.
     const rise = pitched ? Math.min(roofRise(poly), h * 0.55) : 0;
@@ -1673,6 +1981,8 @@ function addBuilding(outer, holes, tags, nB) {
       case 'townhouse':   fm = pickMat(_bMats.brick, nB); capRoof = pickMat(_bMats.tileRoof, nB); break;
       case 'villa':       fm = pickMat(_bMats.villa, nB); capRoof = pickMat(_bMats.tileRoof, nB); break;
       case 'civic':       fm = pickMat(_bMats.civic, nB); capRoof = _bMats.copperRoof; break;
+      case 'church':      fm = pickMat(_bMats.civic, nB); capRoof = _bMats.copperRoof; break;
+      case 'station':     fm = pickMat(_bMats.commercial, nB); capRoof = pickMat(_bMats.flatRoof, nB); break;
       case 'commercial':  fm = pickMat(_bMats.commercial, nB); capRoof = pickMat(_bMats.flatRoof, nB); break;
       case 'industrial':  fm = pickMat(_bMats.indus, nB); capRoof = pickMat(_bMats.flatRoof, nB); break;
       case 'outbuilding': fm = pickMat(_bMats.out, nB);   capRoof = pickMat(_bMats.tileRoof, nB); break;
@@ -1686,6 +1996,8 @@ function addBuilding(outer, holes, tags, nB) {
     const roofBaseY = eMin + wallH;
     if (pitched) addPitchedRoof(poly, eMin, roofBaseY, capRoof, rise);
     else if (kind === 'tower' || kind === 'flats') addRoofDetail(poly, roofBaseY, kind);
+    if (kind === 'church') addChurchSpire(poly, eMin, roofBaseY + rise, _bMats.copperRoof);
+    if (kind === 'station') addStationCanopy(poly, eMin, area);
 
     // villas get a garden hint: a few trees around a small footprint
     if (kind === 'villa' && area < 400) {
@@ -1697,6 +2009,13 @@ function addBuilding(outer, holes, tags, nB) {
       }
     }
 
+    // address plaque: a little sign near the top-right of the facade, if the house has an address
+    const hn = tags['addr:housenumber'];
+    const st = tags['addr:street'];
+    if (hn && (kind === 'villa' || kind === 'townhouse' || kind === 'commercial' || kind === 'flats')) {
+      addAddressSign(poly, eMin, wallH, hn, st);
+    }
+
     let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9;
     for (const p of poly) { minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z); }
     buildings.push({ poly, aabb:{minX,maxX,minZ,maxZ}, h, name: tags.name || null, kind });
@@ -1704,6 +2023,56 @@ function addBuilding(outer, holes, tags, nB) {
   } catch (e) { console.warn('bad footprint skipped', e); return false; }
 }
 function insideBuildingRough(x, z, poly) { return pointInPoly(x, z, poly); }
+
+// small address plaque mounted on the facade, up toward the top corner
+function addAddressSign(poly, eMin, wallH, number, street) {
+  // pick the longest edge as the "front" facade and mount near its far (right) end
+  let bi = 0, bl = -1;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i+1) % poly.length];
+    const l = Math.hypot(b.x-a.x, b.z-a.z);
+    if (l > bl) { bl = l; bi = i; }
+  }
+  const a = poly[bi], b = poly[(bi+1) % poly.length];
+  const dx = b.x-a.x, dz = b.z-a.z, len = Math.hypot(dx,dz) || 1;
+  const nx = dx/len, nz = dz/len;                 // along facade
+
+  // building centroid, so we can pick the outward direction reliably (away from the interior)
+  let cx=0, cz=0; for (const p of poly) { cx+=p.x; cz+=p.z; } cx/=poly.length; cz/=poly.length;
+  let ox = nz, oz = -nx;                           // candidate outward normal
+  const midx = (a.x+b.x)/2, midz = (a.z+b.z)/2;
+  if ((ox*(midx-cx) + oz*(midz-cz)) < 0) { ox = -ox; oz = -oz; }   // flip to point outward
+
+  // position: ~80% along the facade toward the right end, pushed clearly off the wall
+  const t = 0.8;
+  const OFF = 0.5;                                 // stand well proud of the facade + its window texture
+  const px = a.x + dx*t + ox*OFF;
+  const pz = a.z + dz*t + oz*OFF;
+  const signY = eMin + Math.min(Math.max(wallH - 1.0, 2.2), 3.4);  // upper part of the wall
+
+  const c = document.createElement('canvas'); c.width = 320; c.height = 84;
+  const g = c.getContext('2d');
+  g.fillStyle = '#f4efe4'; g.fillRect(0,0,320,84);
+  g.strokeStyle = '#2c3a54'; g.lineWidth = 8; g.strokeRect(4,4,312,76);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  if (street) {
+    g.fillStyle = '#22314a'; g.font = 'bold 30px Arial'; g.fillText(number, 160, 54);
+    g.fillStyle = '#4a5a72'; g.font = '16px Arial';
+    let s = street; if (g.measureText(s).width > 300) { while (g.measureText(s+'…').width > 300 && s.length) s = s.slice(0,-1); s += '…'; }
+    g.fillText(s, 160, 24);
+  } else {
+    g.fillStyle = '#22314a'; g.font = 'bold 44px Arial'; g.fillText(number, 160, 44);
+  }
+  const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
+  const w = street ? 2.2 : 1.3, h = w * (84/320);
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false }));
+  sign.position.set(px, signY, pz);
+  sign.rotation.y = Math.atan2(ox, oz);            // face outward
+  sign.renderOrder = 2;
+  worldGroup.add(sign);
+  raycastTargets.push(sign);
+}
 
 function resetWorld() {
   for (let i = worldGroup.children.length - 1; i >= 0; i--) {
@@ -1715,6 +2084,8 @@ function resetWorld() {
   treeSpots.length = 0; shops.length = 0; waterPolys.length = 0;
   wayWater.length = 0; coastSegs.length = 0; waterRels.length = 0;
   dashSpots.length = 0; waterTexList.length = 0; bridgeDecks.length = 0;
+  railLines.length = 0;
+  for (const t of trains) scene.remove(t.grp); trains.length = 0;
   for (const mk of medkits) scene.remove(mk.mesh); medkits.length = 0;
   for (const ap of ammoPacks) scene.remove(ap.mesh); ammoPacks.length = 0;
   for (const p of projectiles) scene.remove(p.mesh); projectiles.length = 0;
@@ -1785,10 +2156,10 @@ function buildWorld(elements) {
 
   // roof colours by material: tile-red for houses, grey/copper for civic, dark flat for towers
   const tileRoof = ['#8a3f2c','#9a4a32','#7a3a28','#a85838','#6e4a3a'].map(cc =>
-    new THREE.MeshLambertMaterial({ color: new THREE.Color(cc) }));
+    new THREE.MeshLambertMaterial({ color: new THREE.Color(cc), side: THREE.DoubleSide }));
   const flatRoof = ['#3a3d42','#45484e','#33363b'].map(cc =>
     new THREE.MeshLambertMaterial({ color: new THREE.Color(cc) }));
-  const copperRoof = new THREE.MeshLambertMaterial({ color: 0x5a8a72 });   // aged copper (Nordic civic)
+  const copperRoof = new THREE.MeshLambertMaterial({ color: 0x5a8a72, side: THREE.DoubleSide });   // aged copper (Nordic civic)
 
   _bMats = { roof: roofMats, facade: facadeMats, tower: towerMats, brick: brickMats,
     villa: villaMats, civic: civicMats, indus: indusMats, out: outMats, commercial: commercialMats,
@@ -1797,6 +2168,25 @@ function buildWorld(elements) {
 
   let nB = 0, nR = 0;
   let skipped = 0;
+
+  // OSM often maps a building as BOTH a multipolygon relation AND keeps building= on its
+  // member ways — our split query fetches both, so the ways would render a second coplanar
+  // copy on top of the relation (z-fighting flash). Collect member way ids to skip them.
+  const relMemberIds = new Set();
+  const relFootprints = [];      // centroids of relation buildings (order-independent dedup)
+  for (const el of elements) {
+    if (el.type === 'relation' && el.tags && el.tags.building && el.members) {
+      let cx = 0, cz = 0, n = 0;
+      for (const m of el.members) {
+        if (m.type === 'way' && m.ref != null) relMemberIds.add(m.ref);
+        if (m.type === 'way' && (m.role || 'outer') === 'outer' && m.geometry)
+          for (const g of m.geometry) { const p = ll2xz(g.lat, g.lon); cx += p.x; cz += p.z; n++; }
+      }
+      if (n) relFootprints.push({ x: cx/n, z: cz/n });
+    }
+  }
+  const builtFootprints = [];   // for de-duping near-identical standalone ways
+
   for (const el of elements) {
    try {
     if (el.type === 'node' && el.tags) {
@@ -1823,7 +2213,11 @@ function buildWorld(elements) {
       const inners = stitchRings(el.members, 'inner');
       for (const outer of outers) {
         const myHoles = inners.filter(h => pointInPoly(h[0].x, h[0].z, outer));
-        if (addBuilding(outer, myHoles, el.tags, nB)) nB++;
+        if (addBuilding(outer, myHoles, el.tags, nB)) {
+          nB++;
+          let cx=0, cz=0; for (const p of outer) { cx+=p.x; cz+=p.z; }
+          builtFootprints.push({ x: cx/outer.length, z: cz/outer.length, n: outer.length });
+        }
       }
       const rt = poiType(el.tags);
       if (rt && outers.length) {
@@ -1848,7 +2242,20 @@ function buildWorld(elements) {
 
     /* -------- buildings -------- */
     if (tags.building) {
-      if (addBuilding(pts, null, tags, nB)) nB++;
+      // skip a way that is a member of a building relation we already rendered
+      if (el.id != null && relMemberIds.has(el.id)) continue;
+      // skip a near-duplicate footprint (same building mapped twice as separate ways)
+      let cxx = 0, czz = 0; for (const p of pts) { cxx += p.x; czz += p.z; }
+      cxx /= pts.length; czz /= pts.length;
+      let dup = false;
+      for (const f of builtFootprints) {
+        if (Math.abs(f.x - cxx) < 1.5 && Math.abs(f.z - czz) < 1.5 && Math.abs(f.n - pts.length) <= 1) { dup = true; break; }
+      }
+      if (!dup) for (const f of relFootprints) {
+        if (Math.abs(f.x - cxx) < 4 && Math.abs(f.z - czz) < 4) { dup = true; break; }   // way overlaps a relation building
+      }
+      if (dup) continue;
+      if (addBuilding(pts, null, tags, nB)) { nB++; builtFootprints.push({ x: cxx, z: czz, n: pts.length }); }
       continue;
     }
 
@@ -1897,6 +2304,18 @@ function buildWorld(elements) {
       }
       roadPaths.push({ pts, type: tags.highway, name: tags.name || '', width: w,
         drivable: !isPath && !['pedestrian','steps'].includes(tags.highway) });
+      continue;
+    }
+
+    /* -------- railways -------- */
+    if (tags.railway && /^(rail|light_rail|subway|tram|narrow_gauge|preserved|funicular)$/.test(tags.railway)) {
+      // subways underground are skipped unless explicitly on the surface
+      if (tags.railway === 'subway' && tags.tunnel && tags.tunnel !== 'no') continue;
+      if (tags.tunnel && tags.tunnel !== 'no') continue;
+      buildRailway(pts, tags.railway);
+      roadPaths.push({ pts, type: 'railway', name: tags.name || '', width: 3, drivable: false });
+      railLines.push({ pts: pts.slice(), kind: tags.railway });
+      nR++;
       continue;
     }
 
@@ -1959,6 +2378,150 @@ function offsetLine(pts, d) {
     out.push({ x: pts[i].x + nx*d, z: pts[i].z + nz*d });
   }
   return out;
+}
+
+let _railMats = null;
+function makeTrainCar(kind, lead) {
+  const grp = new THREE.Group();
+  const tram = (kind === 'tram' || kind === 'light_rail');
+  const w = tram ? 2.5 : 3.0, len = tram ? 8 : 14, h = tram ? 3.0 : 3.6;
+  const bodyCol = lead ? (tram ? 0x2f6ac8 : 0x9a3530) : 0xcdd2d8;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, len),
+    new THREE.MeshLambertMaterial({ color: bodyCol }));
+  body.position.y = h/2 + 0.55; body.castShadow = QUALITY.shadows;
+  grp.add(body);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(w*0.9, 0.35, len*0.96),
+    new THREE.MeshLambertMaterial({ color: 0x3a3f45 }));
+  roof.position.y = h + 0.55; grp.add(roof);
+  const glass = new THREE.MeshLambertMaterial({ color: 0x223444 });
+  for (const side of [-1, 1]) {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.06, h*0.34, len*0.86), glass);
+    strip.position.set(side*w/2, h*0.62, 0); grp.add(strip);
+  }
+  if (lead) {
+    const ws = new THREE.Mesh(new THREE.BoxGeometry(w*0.8, h*0.36, 0.06), glass);
+    ws.position.set(0, h*0.66, -len/2); grp.add(ws);
+    const head = new THREE.Mesh(new THREE.CircleGeometry(0.22, 12),
+      new THREE.MeshBasicMaterial({ color: 0xfff2c0 }));
+    head.position.set(-w*0.28, 0.9, -len/2 - 0.03); grp.add(head);
+    const head2 = head.clone(); head2.position.x = w*0.28; grp.add(head2);
+  }
+  grp.userData.len = len;
+  return grp;
+}
+function makeTrain(kind) {
+  const grp = new THREE.Group();
+  const nCars = (kind === 'tram') ? 2 : (kind === 'light_rail' ? 3 : 4);
+  const cars = [];
+  let offset = 0;
+  for (let i = 0; i < nCars; i++) {
+    const car = makeTrainCar(kind, i === 0);
+    grp.add(car);
+    cars.push({ mesh: car, back: offset + car.userData.len/2, len: car.userData.len });
+    offset += car.userData.len + 1.2;
+  }
+  grp.userData.cars = cars;
+  grp.userData.totalLen = offset;
+  scene.add(grp);
+  return grp;
+}
+function pathLength(pts) { let L=0; for (let i=1;i<pts.length;i++) L+=Math.hypot(pts[i].x-pts[i-1].x, pts[i].z-pts[i-1].z); return L; }
+function pointAt(pts, d) {
+  for (let i=1;i<pts.length;i++) {
+    const a=pts[i-1], b=pts[i]; const seg=Math.hypot(b.x-a.x,b.z-a.z);
+    if (d <= seg || i === pts.length-1) {
+      const t = seg ? Math.max(0,Math.min(1,d/seg)) : 0;
+      return { x:a.x+(b.x-a.x)*t, z:a.z+(b.z-a.z)*t, ang:Math.atan2(b.x-a.x, b.z-a.z) };
+    }
+    d -= seg;
+  }
+  const a=pts[pts.length-2], b=pts[pts.length-1];
+  return { x:b.x, z:b.z, ang:Math.atan2(b.x-a.x, b.z-a.z) };
+}
+function spawnTrains() {
+  const usable = railLines.filter(r => r.pts.length >= 2 && pathLength(r.pts) > 60)
+    .sort((a,b) => pathLength(b.pts) - pathLength(a.pts));
+  const count = Math.min(usable.length, IS_MOBILE ? 1 : 3);
+  for (let i = 0; i < count; i++) {
+    const line = usable[i];
+    const L = pathLength(line.pts);
+    const grp = makeTrain(line.kind);
+    const speed = (line.kind === 'tram') ? 9 : (line.kind === 'light_rail' ? 12 : 16);
+    trains.push({ grp, pts: line.pts, L, kind: line.kind,
+      d: grp.userData.totalLen + Math.random() * Math.max(1, L - grp.userData.totalLen - 20),
+      dir: Math.random() < 0.5 ? 1 : -1, speed, wait: 0 });
+  }
+}
+function updateTrains(dt) {
+  for (const tr of trains) {
+    if (tr.wait > 0) { tr.wait -= dt; continue; }
+    tr.d += tr.dir * tr.speed * dt;
+    if (tr.d > tr.L - 2) { tr.d = tr.L - 2; tr.dir = -1; tr.wait = 2.5; }
+    else if (tr.d < tr.grp.userData.totalLen) { tr.d = tr.grp.userData.totalLen; tr.dir = 1; tr.wait = 2.5; }
+    for (const car of tr.grp.userData.cars) {
+      const cd = tr.d - car.back;
+      const p = pointAt(tr.pts, Math.max(0, cd));
+      const y = elevAt(p.x, p.z) + 0.05;
+      car.mesh.position.set(p.x, y, p.z);
+      car.mesh.rotation.y = p.ang + (tr.dir < 0 ? Math.PI : 0);
+    }
+  }
+}
+
+function buildRailway(pts, kind) {
+  if (pts.length < 2) return;
+  if (!_railMats) _railMats = {
+    ballast: new THREE.MeshLambertMaterial({ color: 0x5a544c }),
+    sleeper: new THREE.MeshLambertMaterial({ color: 0x4a3a2c }),
+    rail:    new THREE.MeshLambertMaterial({ color: 0x8a8f96 })
+  };
+  const narrow = (kind === 'tram' || kind === 'light_rail' || kind === 'subway' || kind === 'narrow_gauge');
+  const gauge = narrow ? 1.6 : 2.1;            // half-distance between the two rails
+  const bedW  = narrow ? 3.0 : 4.0;
+  const yBase = 0.05;
+
+  // ballast bed as a flat ribbon following the terrain
+  const bed = ribbonMesh(pts, bedW, _railMats.ballast, yBase);
+  if (bed) worldGroup.add(bed);
+
+  // resample the path at a fixed spacing for sleepers + rail segments
+  const seg = [];
+  let carry = 0, sleeperGap = 2.4;
+  const sleepers = [];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i-1], b = pts[i];
+    const dx = b.x-a.x, dz = b.z-a.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.01) continue;
+    const nx = dx/len, nz = dz/len;            // along-track unit
+    const px = -nz, pz = nx;                    // perpendicular unit
+    let d = (i === 1) ? 0 : (sleeperGap - carry);
+    for (; d <= len; d += sleeperGap) {
+      const x = a.x + nx*d, z = a.z + nz*d;
+      sleepers.push({ x, z, px, pz, ang: Math.atan2(dx, dz) });
+    }
+    carry = len - (d - sleeperGap);
+  }
+
+  // sleepers (wooden crossties)
+  const sg = new THREE.BoxGeometry(bedW * 0.9, 0.18, 0.45);
+  for (const s of sleepers) {
+    const m = new THREE.Mesh(sg, _railMats.sleeper);
+    m.position.set(s.x, elevAt(s.x, s.z) + yBase + 0.12, s.z);
+    m.rotation.y = s.ang;
+    worldGroup.add(m);
+  }
+
+  // two continuous rails as thin raised ribbons offset to each side
+  for (const side of [-1, 1]) {
+    const railPts = pts.map(p => {
+      // offset perpendicular by gauge — recompute local perp per vertex
+      return p;
+    });
+    const off = offsetLine(pts, side * gauge);
+    const rail = ribbonMesh(off, 0.16, _railMats.rail, yBase + 0.24);
+    if (rail) { rail.castShadow = QUALITY.shadows; worldGroup.add(rail); raycastTargets.push(rail); }
+  }
 }
 
 function ribbonMesh(pts, width, mat, y, fixedY) {
@@ -3223,7 +3786,55 @@ function updateCars(dt) {
     const cx = a.x + (b.x-a.x)*c.t + nx*off, cz = a.z + (b.z-a.z)*c.t + nz*off;
     c.grp.position.set(cx, elevAt(cx, cz), cz);
     c.grp.rotation.y = Math.atan2(b.x-a.x, b.z-a.z);
+    c.wx = cx; c.wz = cz;                                   // cache world pos for collision
   }
+}
+
+// getting run over hurts: cars bruise you, trains are lethal. Brief cooldown between hits.
+let vehicleHitCd = 0;
+function checkVehicleHits(dt) {
+  if (!player.alive) return;
+  if (vehicleHitCd > 0) { vehicleHitCd -= dt; return; }
+  const px = player.pos.x, pz = player.pos.z, py = player.pos.y - player.eyeH;
+  // cars
+  for (const c of cars) {
+    if (c.wx === undefined) continue;
+    const d = Math.hypot(px - c.wx, pz - c.wz);
+    if (d < 2.2 && Math.abs(py - elevAt(c.wx, c.wz)) < 2.5) {
+      const dmg = 14 + c.speed * 1.2;                       // ~20-26
+      shoveFrom(c.wx, c.wz, 5.5);
+      damagePlayer(dmg); sfxThud(); vehicleHitCd = 0.9;
+      return;
+    }
+  }
+  // trains — check each car; much bigger hitbox and heavy damage
+  for (const tr of trains) {
+    for (const car of tr.grp.userData.cars) {
+      const p = car.mesh.position;
+      const d = Math.hypot(px - p.x, pz - p.z);
+      if (d < 3.2 && Math.abs(py - p.y) < 3.2) {
+        const moving = tr.wait <= 0;
+        const dmg = moving ? 70 : 12;                        // a moving train nearly kills you
+        shoveFrom(p.x, p.z, moving ? 11 : 3);
+        damagePlayer(dmg); sfxThud(); vehicleHitCd = 1.1;
+        return;
+      }
+    }
+  }
+}
+function shoveFrom(sx, sz, force) {
+  const dx = player.pos.x - sx, dz = player.pos.z - sz;
+  const l = Math.hypot(dx, dz) || 1;
+  player.vel.x += (dx/l) * force;
+  player.vel.z += (dz/l) * force;
+  player.vel.y += force * 0.35;                             // a little launch
+}
+function sfxThud() {
+  const a = audio(), t = a.currentTime;
+  const o = a.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(120, t);
+  o.frequency.exponentialRampToValueAtTime(45, t + 0.18);
+  const g = a.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + 0.24);
 }
 /* ---------------- MINIMAP ---------------- */
 const MM_SCALE = 1.35;      // px per meter on the static map
@@ -3255,7 +3866,7 @@ function buildMinimapStatic() {
   // buildings — tinted by archetype
   const KIND_COL = { tower:'#5a6a80', flats:'#4a5260', townhouse:'#7a5648',
     villa:'#6e7458', civic:'#8a7a5a', industrial:'#5a5d62', outbuilding:'#4a453d',
-    commercial:'#7a6a4a' };
+    commercial:'#7a6a4a', church:'#9a8a6a', station:'#c85a48' };
   for (const b of buildings) {
     x.fillStyle = KIND_COL[b.kind] || '#4a5260';
     x.beginPath();
@@ -3265,11 +3876,24 @@ function buildMinimapStatic() {
   // roads
   x.lineCap = 'round'; x.lineJoin = 'round';
   for (const r of roadPaths) {
+    if (r.type === 'railway') continue;                // drawn separately below
     x.strokeStyle = r.width >= 9 ? '#c8bfa8' : (r.width >= 5 ? '#9a948a' : '#6f6a62');
     x.lineWidth = Math.max(1.6, r.width * MM_SCALE * 0.7);
     x.beginPath();
     r.pts.forEach((p, i) => i ? x.lineTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE) : x.moveTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE));
     x.stroke();
+  }
+  // railways: dark line with light cross-ties (dashed overlay)
+  for (const r of roadPaths) {
+    if (r.type !== 'railway') continue;
+    x.strokeStyle = '#3a3630'; x.lineWidth = 3.4; x.setLineDash([]);
+    x.beginPath();
+    r.pts.forEach((p, i) => i ? x.lineTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE) : x.moveTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE));
+    x.stroke();
+    x.strokeStyle = '#b8b0a0'; x.lineWidth = 3.2; x.setLineDash([2, 5]);
+    x.beginPath();
+    r.pts.forEach((p, i) => i ? x.lineTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE) : x.moveTo(W + p.x*MM_SCALE, W + p.z*MM_SCALE));
+    x.stroke(); x.setLineDash([]);
   }
 }
 function drawMinimap() {
@@ -3321,12 +3945,86 @@ function drawMinimap() {
   x.fill(); x.stroke(); x.restore();
 }
 
+/* ---------------- FULL-SCREEN MAP (M) ---------------- */
+let mapOpen = false, mapZoom = 1, mapPanX = 0, mapPanY = 0;
+function toggleFullMap(force) {
+  mapOpen = force !== undefined ? force : !mapOpen;
+  $('fullmap').classList.toggle('on', mapOpen);
+  if (mapOpen) { mapZoom = 1; mapPanX = 0; mapPanY = 0; drawFullMap(); }
+}
+function drawFullMap() {
+  if (!minimapStatic || !mapOpen) return;
+  const cv = $('bigmap');
+  const box = cv.parentElement.getBoundingClientRect();
+  const S = Math.round(box.width);
+  if (cv.width !== S) { cv.width = S; cv.height = S; }
+  const x = cv.getContext('2d');
+  x.clearRect(0, 0, S, S);
+  x.fillStyle = '#141a20'; x.fillRect(0, 0, S, S);
+
+  // fit the whole static map into the square, north-up, with zoom/pan
+  const src = minimapStatic.width;
+  const base = S / src;
+  const scale = base * mapZoom;
+  x.save();
+  x.translate(S/2 + mapPanX, S/2 + mapPanY);
+  x.scale(scale, scale);
+  x.translate(-src/2, -src/2);
+  x.imageSmoothingEnabled = false;
+  x.drawImage(minimapStatic, 0, 0);
+
+  // helper: world (x,z) -> static-canvas px
+  const toC = (wx, wz) => [minimapStatic.width/2 + wx*MM_SCALE, minimapStatic.height/2 + wz*MM_SCALE];
+  const dot = (wx, wz, col, r) => { const [cx,cz]=toC(wx,wz); x.fillStyle=col; x.beginPath(); x.arc(cx,cz,r/scale,0,7); x.fill(); };
+
+  // medkits + ammo
+  for (const mk of medkits) { if (mk.taken) continue; const [cx,cz]=toC(mk.x,mk.z);
+    x.fillStyle='#3fbf5a'; const s=7/scale; x.fillRect(cx-s,cz-s*0.35,s*2,s*0.7); x.fillRect(cx-s*0.35,cz-s,s*0.7,s*2); }
+  for (const ap of ammoPacks) { if (ap.taken) continue; const [cx,cz]=toC(ap.x,ap.z);
+    x.fillStyle='#e8c24a'; const s=6/scale; x.fillRect(cx-s,cz-s,s*2,s*2); }
+  // enemies
+  for (const e of enemies) { if (e.alive) dot(e.grp.position.x, e.grp.position.z, '#d84a35', 5); }
+  // remote players
+  if (net.on) for (const id in net.players) { const p = net.players[id];
+    dot(p.pos.x, p.pos.z, '#' + p.color.getHexString(), 5); }
+
+  // player arrow — north-up map, so rotate to actual world facing (forward = (sin,cos), +z is down)
+  const [pcx, pcz] = toC(player.pos.x, player.pos.z);
+  x.save(); x.translate(pcx, pcz); x.rotate(Math.PI - player.yaw); x.scale(1/scale, 1/scale);
+  x.fillStyle = '#f2ede3'; x.strokeStyle = '#111'; x.lineWidth = 2;
+  x.beginPath(); x.moveTo(0, -12); x.lineTo(9, 10); x.lineTo(0, 5); x.lineTo(-9, 10); x.closePath(); x.fill(); x.stroke();
+  x.restore();
+
+  x.restore();
+}
+function initFullMap() {
+  const inner = $('fullmapinner');
+  // drag to pan
+  let dragging = false, lx = 0, ly = 0;
+  inner.addEventListener('pointerdown', e => { dragging = true; lx = e.clientX; ly = e.clientY; inner.setPointerCapture(e.pointerId); });
+  inner.addEventListener('pointermove', e => { if (!dragging) return;
+    mapPanX += e.clientX - lx; mapPanY += e.clientY - ly; lx = e.clientX; ly = e.clientY; drawFullMap(); });
+  inner.addEventListener('pointerup', e => { dragging = false; });
+  // scroll to zoom toward cursor
+  inner.addEventListener('wheel', e => { e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.15 : 1/1.15;
+    const nz = Math.max(1, Math.min(6, mapZoom * factor));
+    const box = inner.getBoundingClientRect();
+    const mx = e.clientX - box.left - box.width/2 - mapPanX;
+    const my = e.clientY - box.top - box.height/2 - mapPanY;
+    mapPanX -= mx * (nz/mapZoom - 1); mapPanY -= my * (nz/mapZoom - 1);
+    mapZoom = nz; drawFullMap();
+  }, { passive: false });
+  // clicking the dark backdrop closes
+  $('fullmap').addEventListener('pointerdown', e => { if (e.target === $('fullmap')) toggleFullMap(false); });
+}
+
 /* ---------------- STREET NAME HUD ---------------- */
 let streetT = 0;
 function updateStreetName() {
   let best = '', bd = 26;
   for (const r of roadPaths) {
-    if (!r.name) continue;
+    if (!r.name || r.type === 'railway') continue;
     for (let i = 1; i < r.pts.length; i++) {
       const a = r.pts[i-1], b = r.pts[i];
       const dx = b.x-a.x, dz = b.z-a.z;
@@ -3417,6 +4115,13 @@ function initInput() {
     const el = document.activeElement;
     if (!started || (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable))) return;
     keys[e.code] = true;
+    if (e.code === 'KeyM') {
+      toggleFullMap();
+      if (mapOpen && !IS_MOBILE) document.exitPointerLock();
+      else if (!mapOpen && !IS_MOBILE && started) lockPointer();
+      e.preventDefault();
+    }
+    if (e.code === 'Escape' && mapOpen) { toggleFullMap(false); }
     if (e.code === 'KeyR') reload();
     if (WKEY[e.code] !== undefined) switchWeapon(WKEY[e.code]);
     if (e.code === 'Space') e.preventDefault();
@@ -3444,7 +4149,7 @@ function initInput() {
     if (locked) {
       paused = false;
       $('overlay').style.display = 'none';
-    } else if (started) {
+    } else if (started && !mapOpen) {
       paused = true;
       if (player.alive) {
         $('ovtitle').textContent = 'PAUSED'; $('ovtitle').className = '';
@@ -3477,6 +4182,8 @@ function animate() {
     updateProjectiles(dt);
     updateMedkits(dt);
     updateAmmoPacks(dt);
+    updateTrains(dt);
+    checkVehicleHits(dt);
     updateRemotePlayers(dt);
     netTick(dt);
     if (cd > 0) cd -= dt;
@@ -3493,6 +4200,7 @@ function animate() {
     streetTimer -= dt;
     if (streetTimer <= 0) { streetTimer = 0.5; updateStreetName(); drawMinimap(); }
     else drawMinimap();
+    if (mapOpen) drawFullMap();
   }
   renderer.render(scene, camera);
 }
@@ -3502,11 +4210,123 @@ function animate() {
    MULTIPLAYER  (PeerJS · WebRTC · free public broker · star topology)
    ================================================================ */
 const PEER_PREFIX = 'strshoot-v2-';
+const LOBBY_ID = 'mapwars-lobby-v1';        // well-known directory peer id
 const net = {
   on: false, isHost: false, mode: 'solo',
   peer: null, code: '', myId: '', name: 'Player',
-  conns: {}, players: {}, sendAcc: 0
+  conns: {}, players: {}, sendAcc: 0,
+  isPublic: false, locName: ''              // for the public lobby heartbeat
 };
+
+/* ================================================================
+   PUBLIC LOBBY  (serverless directory via a self-elected PeerJS peer)
+   Public hosts + browsers all try to claim LOBBY_ID. Whoever gets it
+   becomes the directory holding the game list; everyone else connects
+   to it. Hosts heartbeat their game in; browsers query it out. If the
+   directory drops, the next heartbeat/query re-elects one.
+   ================================================================ */
+const lobby = {
+  peer: null, isDirectory: false, conn: null, ready: false,
+  games: {},                 // code -> { code, name, lat, lon, mode, players, ts }  (directory only)
+  onList: null, role: null,  // 'host' | 'browse'
+  hbTimer: null, queryTimer: null, reElecting: false
+};
+function lobbyPrune() {
+  const now = Date.now();
+  for (const k in lobby.games) if (now - lobby.games[k].ts > 20000) delete lobby.games[k];
+}
+function lobbyReset() {
+  clearInterval(lobby.hbTimer); clearInterval(lobby.queryTimer);
+  lobby.hbTimer = lobby.queryTimer = null;
+  try { lobby.peer && lobby.peer.destroy(); } catch (e) {}
+  lobby.peer = null; lobby.conn = null; lobby.ready = false; lobby.isDirectory = false;
+}
+// become the directory, or connect to whoever already is
+function lobbyEnsure(done) {
+  if (lobby.ready) { done && done(); return; }
+  const p = new Peer(LOBBY_ID, { debug: 0 });
+  lobby.peer = p;
+  p.on('open', () => {                       // we won the election → we are the directory
+    lobby.isDirectory = true; lobby.ready = true;
+    p.on('connection', c => { c.on('data', d => lobbyDirectoryHandle(c, d)); });
+    done && done();
+  });
+  p.on('error', e => {
+    if (e.type === 'unavailable-id') {        // someone else is the directory → connect to them
+      try { p.destroy(); } catch (er) {}
+      lobbyConnectClient(done);
+    } else if (!lobby.ready) { done && done('error'); }
+  });
+}
+function lobbyConnectClient(done) {
+  const p = new Peer({ debug: 0 });           // anonymous
+  lobby.peer = p; lobby.isDirectory = false;
+  p.on('open', () => {
+    const conn = p.connect(LOBBY_ID, { reliable: true });
+    lobby.conn = conn;
+    const to = setTimeout(() => { if (!lobby.ready) done && done('error'); }, 8000);
+    conn.on('open', () => { clearTimeout(to); lobby.ready = true; done && done(); });
+    conn.on('data', d => {
+      let m; try { m = JSON.parse(d); } catch (e) { return; }
+      if (m.t === 'games' && lobby.onList) lobby.onList(m.games);
+    });
+    conn.on('close', () => { lobby.ready = false; lobbyReElect(); });
+    conn.on('error', () => { if (!lobby.ready) done && done('error'); });
+  });
+  p.on('error', e => { if (!lobby.ready) done && done('error'); });
+}
+function lobbyReElect() {
+  if (lobby.reElecting || !lobby.role) return;
+  lobby.reElecting = true;
+  setTimeout(() => {
+    lobby.reElecting = false;
+    lobbyReset();
+    if (lobby.role === 'host') lobbyPublish();
+    else if (lobby.role === 'browse') lobbyBrowse(lobby.onList);
+  }, 600 + Math.random() * 1200);            // jitter so racers don't collide
+}
+function lobbyDirectoryHandle(conn, raw) {
+  let m; try { m = JSON.parse(raw); } catch (e) { return; }
+  if (m.t === 'register') { lobby.games[m.g.code] = { ...m.g, ts: Date.now() }; }
+  else if (m.t === 'unregister') { delete lobby.games[m.code]; }
+  else if (m.t === 'list') { lobbyPrune(); try { conn.send(JSON.stringify({ t: 'games', games: Object.values(lobby.games) })); } catch (e) {} }
+}
+// HOST: announce this game publicly and keep heartbeating live player counts
+function lobbyPublish() {
+  lobby.role = 'host';
+  const beat = () => {
+    const g = { code: net.code, name: net.locName || 'Unknown area',
+      lat: +CENTER.lat.toFixed(4), lon: +CENTER.lon.toFixed(4),
+      mode: GAME_MODE, players: 1 + Object.keys(net.players).length };
+    if (lobby.isDirectory) lobby.games[g.code] = { ...g, ts: Date.now() };
+    else if (lobby.conn && lobby.conn.open) { try { lobby.conn.send(JSON.stringify({ t: 'register', g })); } catch (e) {} }
+  };
+  lobbyEnsure(err => { if (err) return; beat(); clearInterval(lobby.hbTimer); lobby.hbTimer = setInterval(beat, 5000); });
+}
+function lobbyUnpublish() {
+  if (!lobby.role) return;
+  if (lobby.isDirectory) delete lobby.games[net.code];
+  else if (lobby.conn && lobby.conn.open) { try { lobby.conn.send(JSON.stringify({ t: 'unregister', code: net.code })); } catch (e) {} }
+  lobby.role = null; lobbyReset();
+}
+// BROWSER: fetch + refresh the public game list
+function lobbyBrowse(onList) {
+  lobby.role = 'browse'; lobby.onList = onList;
+  const query = () => {
+    lobbyPrune();
+    if (lobby.isDirectory) onList(Object.values(lobby.games));
+    else if (lobby.conn && lobby.conn.open) { try { lobby.conn.send(JSON.stringify({ t: 'list' })); } catch (e) {} }
+  };
+  lobbyEnsure(err => {
+    if (err) { onList(null); return; }
+    query(); clearInterval(lobby.queryTimer); lobby.queryTimer = setInterval(query, 4000);
+  });
+}
+function lobbyStopBrowse() {
+  if (lobby.role === 'browse') { lobby.role = null; lobbyReset(); }
+}
+
+
 function randCode() {
   const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   let s = ''; for (let i = 0; i < 4; i++) s += L[Math.floor(Math.random() * L.length)];
@@ -3801,7 +4621,7 @@ function initSearch() {
   // ---- net mode: solo / host / join ----
   let netMode = 'solo';
   const applyName = () => {
-    const v = ($('pname').value || $('jname').value || '').trim();
+    const v = ($('pname').value || $('jname').value || $('jname2') && $('jname2').value || '').trim();
     if (v) net.name = v.slice(0, 14);
   };
   document.querySelectorAll('.netbtn').forEach(btn => {
@@ -3812,13 +4632,36 @@ function initSearch() {
       const joining = netMode === 'join';
       $('searchphase').style.display = joining ? 'none' : 'flex';
       $('joinphase').style.display = joining ? 'flex' : 'none';
+      $('privacyrow').style.display = netMode === 'host' ? 'flex' : 'none';
+      if (!joining) lobbyStopBrowse();               // leaving the browse list
       $('playbtn').textContent = netMode === 'host'
         ? 'HOST GAME: ' + pendingLabel.toUpperCase()
         : 'PLAY: ' + pendingLabel.toUpperCase();
       $('loadmsg').textContent = netMode === 'host'
         ? 'Pick a location, then share the code that appears with your friends.'
-        : (netMode === 'join' ? 'Ask your host for their 4-letter code.'
+        : (netMode === 'join' ? 'Ask your host for their 4-letter code — or browse Active Matches.'
           : 'Search anywhere on Earth — or play the default: Vasastan, Stockholm');
+    });
+  });
+
+  // ---- private / public host toggle ----
+  document.querySelectorAll('.privbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.privbtn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      net.isPublic = btn.dataset.priv === 'public';
+    });
+  });
+
+  // ---- join tabs: enter code vs browse active matches ----
+  document.querySelectorAll('.jointab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.jointab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const browse = btn.dataset.jt === 'browse';
+      $('jtcode').style.display = browse ? 'none' : 'block';
+      $('jtbrowse').style.display = browse ? 'block' : 'none';
+      if (browse) startBrowsing(); else lobbyStopBrowse();
     });
   });
 
@@ -3833,6 +4676,8 @@ function initSearch() {
         if (!code) { $('playbtn').disabled = false; $('playbtn').textContent = 'HOST FAILED — RETRY'; return; }
         location.hash = CENTER.lat + ',' + CENTER.lon + ',' + GAME_MODE;
         startLoading();
+        // announce to Active Matches once we know the area name (after load)
+        if (net.isPublic) waitLocThenPublish();
       });
     } else {
       location.hash = CENTER.lat + ',' + CENTER.lon + ',' + GAME_MODE;
@@ -3848,6 +4693,58 @@ function initSearch() {
     joinGame(code, msg => $('joinstatus').textContent = msg);
   });
   $('joincode').addEventListener('keydown', e => { if (e.key === 'Enter') $('joinbtn').click(); });
+}
+
+// wait until reverse-geocode fills net.locName, then publish to the lobby
+function waitLocThenPublish() {
+  let tries = 0;
+  const t = setInterval(() => {
+    if (net.locName || tries++ > 20) { clearInterval(t); lobbyPublish(); }
+  }, 500);
+}
+
+// browse Active Matches: fetch the public list and render it
+let _lastMatches = [];
+function startBrowsing() {
+  $('matchlist').innerHTML = '<div class="matchempty">Searching for public games…</div>';
+  $('browsestatus').textContent = '';
+  lobbyBrowse(games => {
+    if (games === null) { $('matchlist').innerHTML = '<div class="matchempty">Couldn\'t reach the match directory — check your connection.</div>'; return; }
+    _lastMatches = games;
+    renderMatches(games);
+  });
+}
+function renderMatches(games) {
+  const list = $('matchlist');
+  const active = (games || []).filter(g => g.code && g.code !== net.code)
+    .sort((a, b) => (b.players||0) - (a.players||0));
+  if (!active.length) {
+    list.innerHTML = '<div class="matchempty">No public games right now.<br>Host one and pick 🌍 Public!</div>';
+    $('browsestatus').textContent = 'Refreshing every few seconds…';
+    return;
+  }
+  list.innerHTML = '';
+  for (const g of active) {
+    const row = document.createElement('div');
+    row.className = 'matchrow';
+    const modeCls = g.mode === 'deathmatch' ? 'deathmatch' : 'explore';
+    const modeLbl = g.mode === 'deathmatch' ? 'DEATHMATCH' : 'EXPLORE';
+    row.innerHTML =
+      '<div class="mi"><div class="mloc">' + escapeHtml(g.name || 'Unknown area') + '</div>' +
+      '<div class="mmeta"><span class="mcode">' + g.code + '</span> · ' + g.lat + ', ' + g.lon + '</div></div>' +
+      '<span class="mmode ' + modeCls + '">' + modeLbl + '</span>' +
+      '<span class="mcount">' + (g.players || 1) + '👤</span>';
+    row.addEventListener('click', () => joinFromList(g));
+    list.appendChild(row);
+  }
+  $('browsestatus').textContent = active.length + ' game' + (active.length === 1 ? '' : 's') + ' live · refreshing…';
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+function joinFromList(g) {
+  const nm = ($('jname2').value || '').trim(); if (nm) net.name = nm.slice(0, 14);
+  lobbyStopBrowse();
+  $('browsestatus').textContent = 'Joining ' + (g.name || g.code) + '…';
+  joinGame(g.code, msg => $('browsestatus').textContent = msg);
 }
 
 // client: host sent us the map location — load it, then drop into the game
@@ -3900,6 +4797,10 @@ async function boot() {
   initThree();
   buildGun();
   initInput();
+  initFullMap();
+  addEventListener('beforeunload', () => { try { lobbyUnpublish(); } catch (e) {} });
+  $('mapwrap').addEventListener('click', () => { if (started) toggleFullMap(); });
+  $('mapwrap').style.cursor = 'pointer';
   if (IS_MOBILE) initTouch();
   initSearch();
   $('relocate').addEventListener('click', e => {
@@ -3983,6 +4884,7 @@ async function loadWorld() {
   spawnCars();
   spawnMedkits();
   spawnAmmoPacks();
+  spawnTrains();
   updateAmmoHUD();
   loadBar(1);
 
