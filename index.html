@@ -519,7 +519,7 @@
       <button class="privbtn active" data-priv="private">🔒 PRIVATE<span>invite by code only</span></button>
       <button class="privbtn" data-priv="public">🌍 PUBLIC<span>listed in Active Matches</span></button>
     </div>
-    <button id="playbtn">PLAY: VASASTAN, STOCKHOLM</button>
+    <button id="playbtn">PLAY</button>
     <div id="cachenote">Visited places are saved locally and load instantly next time · <span id="clearcache">clear saved maps</span></div>
   </div>
   <div id="joinphase">
@@ -541,7 +541,7 @@
     </div>
   </div>
   <div id="bar"><div id="barfill"></div></div>
-  <div id="loadmsg">Search anywhere on Earth — or play the default: Vasastan, Stockholm</div>
+  <div id="loadmsg">Search anywhere on Earth — or play a random spot</div>
   <div id="offline"></div>
   <button id="startbtn">ENTER THE CITY</button>
   <div id="controls">
@@ -581,7 +581,7 @@
   <div id="roomcode">ROOM <b id="roomcodeval">----</b></div>
   <div id="players"></div>
   <div id="killfeed"></div>
-  <div id="areacard"><div class="small" id="areasmall"></div><div class="big" id="areaname">Vasastan</div><div class="rule"></div></div>
+  <div id="areacard"><div class="small" id="areasmall"></div><div class="big" id="areaname"></div><div class="rule"></div></div>
 </div>
 
 <div id="overlay"><h1 id="ovtitle">PAUSED</h1><p id="ovsub">Click to resume</p>
@@ -605,7 +605,54 @@
    ================================================================ */
 'use strict';
 
-const DEFAULT_CENTER = { lat: 59.341339339340124, lon: 18.064857049135984, label: 'Vasastan, Stockholm' };
+// A spin-the-globe default: pick a real, densely-mapped neighborhood somewhere in the world
+// (a random lat/lon would land in ocean or wilderness most of the time). A small jitter means
+// you rarely spawn in exactly the same spot twice.
+const WORLD_SPOTS = [
+  { lat: 59.3413, lon: 18.0649, label: 'Vasastan, Stockholm' },
+  { lat: 40.7223, lon: -73.9874, label: 'East Village, New York' },
+  { lat: 51.5145, lon: -0.1447, label: 'Soho, London' },
+  { lat: 48.8656, lon: 2.3439, label: 'Grands Boulevards, Paris' },
+  { lat: 52.5170, lon: 13.3889, label: 'Mitte, Berlin' },
+  { lat: 41.3870, lon: 2.1700, label: 'Eixample, Barcelona' },
+  { lat: 35.6655, lon: 139.7000, label: 'Shibuya, Tokyo' },
+  { lat: 55.7520, lon: 37.6175, label: 'Tverskoy, Moscow' },
+  { lat: 41.9027, lon: 12.4963, label: 'Centro Storico, Rome' },
+  { lat: 45.4640, lon: 9.1900, label: 'Centro, Milan' },
+  { lat: 52.3676, lon: 4.9041, label: 'Grachtengordel, Amsterdam' },
+  { lat: 48.2082, lon: 16.3738, label: 'Innere Stadt, Vienna' },
+  { lat: 37.7833, lon: -122.4167, label: 'Union Square, San Francisco' },
+  { lat: 43.6532, lon: -79.3832, label: 'Downtown, Toronto' },
+  { lat: -33.8688, lon: 151.2093, label: 'CBD, Sydney' },
+  { lat: 1.2897, lon: 103.8501, label: 'Downtown Core, Singapore' },
+  { lat: 22.2793, lon: 114.1628, label: 'Central, Hong Kong' },
+  { lat: 25.2048, lon: 55.2708, label: 'Bur Dubai, Dubai' },
+  { lat: -23.5613, lon: -46.6560, label: 'Bela Vista, São Paulo' },
+  { lat: -34.6037, lon: -58.3816, label: 'Monserrat, Buenos Aires' },
+  { lat: 19.4326, lon: -99.1332, label: 'Centro, Mexico City' },
+  { lat: 41.0082, lon: 28.9784, label: 'Fatih, Istanbul' },
+  { lat: 50.0755, lon: 14.4378, label: 'Staré Město, Prague' },
+  { lat: 53.3498, lon: -6.2603, label: 'City Centre, Dublin' },
+  { lat: 60.1699, lon: 24.9384, label: 'Kluuvi, Helsinki' },
+  { lat: 55.6761, lon: 12.5683, label: 'Indre By, Copenhagen' },
+  { lat: 59.9139, lon: 10.7522, label: 'Sentrum, Oslo' },
+  { lat: 38.7223, lon: -9.1393, label: 'Baixa, Lisbon' },
+  { lat: 40.4168, lon: -3.7038, label: 'Sol, Madrid' },
+  { lat: 45.5017, lon: -73.5673, label: 'Ville-Marie, Montréal' },
+  { lat: 47.3769, lon: 8.5417, label: 'Altstadt, Zürich' },
+  { lat: 35.6892, lon: 51.3890, label: 'Central, Tehran' },
+  { lat: 13.7563, lon: 100.5018, label: 'Phra Nakhon, Bangkok' },
+  { lat: 3.1390, lon: 101.6869, label: 'City Centre, Kuala Lumpur' }
+];
+function randomWorldSpot() {
+  const s = WORLD_SPOTS[Math.floor(Math.random() * WORLD_SPOTS.length)];
+  // jitter up to ~500 m so it's a slightly different block each time
+  const dLat = (Math.random() - 0.5) * 0.009;
+  const dLon = (Math.random() - 0.5) * 0.009 / Math.cos(s.lat * Math.PI / 180);
+  return { lat: s.lat + dLat, lon: s.lon + dLon, label: s.label };
+}
+
+const DEFAULT_CENTER = randomWorldSpot();
 let CENTER = { lat: DEFAULT_CENTER.lat, lon: DEFAULT_CENTER.lon };
 const RADIUS_M = 620;                 // playable radius fetched from OSM
 const HAS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
@@ -781,12 +828,12 @@ function osmQueries() {
     buildings: `[out:json][timeout:30];(way["building"](${bb});relation["building"](${bb}););out geom;`,
     roads:     `[out:json][timeout:30];(way["highway"](${bb});` +
                `way["railway"~"^(rail|light_rail|subway|tram|narrow_gauge|preserved|funicular)$"](${bb});` +
-               `way["leisure"~"park|garden|playground|pitch|common"](${bb});` +
-               `way["landuse"~"grass|forest|cemetery|recreation_ground|village_green"](${bb});` +
-               `way["natural"="wood"](${bb}););out geom;`,
+               `way["leisure"~"park|garden|playground|pitch|common|golf_course|dog_park|nature_reserve"](${bb});` +
+               `way["landuse"~"grass|meadow|forest|cemetery|recreation_ground|village_green|greenfield|orchard|vineyard|farmland|allotments|flowerbed"](${bb});` +
+               `way["natural"~"wood|grassland|scrub|heath|meadow|fell"](${bb}););out geom;`,
     water:     `[out:json][timeout:30];(way["natural"~"water|coastline"](${bb});way["water"](${bb});` +
-               `way["waterway"~"^(riverbank|dock|river|stream|canal|ditch)$"](${bb});` +
-               `relation["natural"="water"](${bb});relation["waterway"="riverbank"](${bb});relation["water"](${bb}););out geom(${bb});`,
+               `way["waterway"~"^(riverbank|dock|river|stream|canal|ditch|drain)$"](${bb});` +
+               `relation["natural"="water"](${bb});relation["waterway"="riverbank"](${bb});relation["water"](${bb}););out geom;`,
     pois:      `[out:json][timeout:30];(node["natural"="tree"](${bb});nwr["shop"](${bb});` +
                `nwr["amenity"]["name"](${bb});` +
                `nwr["amenity"~"^(cafe|restaurant|bar|pub|fast_food|pharmacy|bank|cinema|theatre|nightclub|ice_cream)$"](${bb});` +
@@ -1389,6 +1436,26 @@ function addWaterPoly(outer, holes, shorePts) {
   } catch (e) { console.warn('water poly skipped', e); }
 }
 
+// A linear waterway (river/canal) is a centerline — register it as swim/collision + minimap
+// water by turning the ribbon into a thin polygon (offset the centerline to both banks).
+function registerWaterStrip(pts, width) {
+  if (pts.length < 2) return;
+  const hw = width / 2;
+  const left = [], right = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i-1)], b = pts[Math.min(pts.length-1, i+1)];
+    let nx = -(b.z - a.z), nz = (b.x - a.x);
+    const l = Math.hypot(nx, nz) || 1; nx = nx/l*hw; nz = nz/l*hw;
+    left.push({ x: pts[i].x + nx, z: pts[i].z + nz });
+    right.push({ x: pts[i].x - nx, z: pts[i].z - nz });
+  }
+  const poly = left.concat(right.reverse());        // closed ribbon polygon
+  if (pointInPoly(0, 0, poly)) return;              // never flood spawn
+  let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9, lvl=1e9;
+  for (const p of poly) { minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z); lvl=Math.min(lvl, elevAt(p.x,p.z)); }
+  waterPolys.push({ outer: poly, holes: [], aabb:{minX,maxX,minZ,maxZ}, level: lvl + 0.22 });
+}
+
 let _roadSample = null;
 function roadSample() {       // build once: a bounded set of road vertices to test against
   if (_roadSample) return _roadSample;
@@ -1479,10 +1546,29 @@ function waterAt(x, z) {
   return null;
 }
 
+// free-standing signpost for a named business with no building wall nearby
+function addPostSign(s) {
+  const label = (s.name || '').toUpperCase().slice(0, 22);
+  if (!label) return;
+  const gy = elevAt(s.x, s.z);
+  const tex = signTexture(label, s.type, signCount);
+  const wide = Math.min(Math.max(1.6, label.length * 0.24), 4.5);
+  const board = new THREE.Mesh(
+    new THREE.PlaneGeometry(wide, Math.max(0.6, wide * 0.22)),
+    new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide })
+  );
+  board.position.set(s.x, gy + 2.4, s.z);
+  board.rotation.y = rnd() * Math.PI * 2;              // faces a random direction (no wall to hug)
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 6),
+    new THREE.MeshLambertMaterial({ color: 0x3a3d42 }));
+  pole.position.set(s.x, gy + 1.2, s.z);
+  worldGroup.add(board, pole);
+}
+
 function buildSigns() {
   // named buildings (churches, schools, institutions) get large facade name signs — real data
   for (const b of buildings) {
-    if (!b.name || signCount >= 90) continue;
+    if (!b.name || signCount >= 160) continue;
     const e0 = longestEdge(b.poly);
     if (!e0) continue;
     const label = b.name.toUpperCase().slice(0, 30);
@@ -1517,12 +1603,17 @@ function buildSigns() {
   const usedWalls = [];
   let idx = 0;
   for (const s of shops) {
-    if (signCount >= (IS_MOBILE ? 220 : 420)) break;
-    const w = nearestWall(s.x, s.z, 26);
-    if (!w) continue;
+    if (signCount >= (IS_MOBILE ? 320 : 650)) break;
+    const w = nearestWall(s.x, s.z, 40);
+    if (!w) {
+      // no building wall nearby — a real named business still deserves a sign,
+      // so plant a free-standing signpost at its location instead of dropping it
+      if (s.name) { addPostSign(s); namedCount++; signCount++; }
+      continue;
+    }
     // businesses sharing an address stack their signs upward instead of being dropped
     const stack = usedWalls.filter(u => Math.hypot(u.x - w.qx, u.z - w.qz) < 3.2).length;
-    if (stack >= 4) continue;
+    if (stack >= 6) { if (s.name) { addPostSign(s); namedCount++; signCount++; } continue; }
     usedWalls.push({ x: w.qx, z: w.qz });
 
     let label = (s.name || GENERIC_NAME[s.type] || s.type.replace(/_/g, ' ').toUpperCase());
@@ -2024,6 +2115,24 @@ function addBuilding(outer, holes, tags, nB) {
 }
 function insideBuildingRough(x, z, poly) { return pointInPoly(x, z, poly); }
 
+// axis-aligned bounding box of a footprint, plus overlap test for de-duping stacked buildings
+function footprintBox(pts) {
+  let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9;
+  for (const p of pts) { minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z); }
+  return { minX, maxX, minZ, maxZ };
+}
+// fraction of the SMALLER box's area covered by the intersection (0..1)
+function boxOverlapFrac(a, b) {
+  const ix = Math.max(0, Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX));
+  const iz = Math.max(0, Math.min(a.maxZ, b.maxZ) - Math.max(a.minZ, b.minZ));
+  const inter = ix * iz;
+  if (inter <= 0) return 0;
+  const areaA = (a.maxX-a.minX) * (a.maxZ-a.minZ);
+  const areaB = (b.maxX-b.minX) * (b.maxZ-b.minZ);
+  const smaller = Math.min(areaA, areaB) || 1;
+  return inter / smaller;
+}
+
 // small address plaque mounted on the facade, up toward the top corner
 function addAddressSign(poly, eMin, wallH, number, street) {
   // pick the longest edge as the "front" facade and mount near its far (right) end
@@ -2111,6 +2220,8 @@ function buildWorld(elements) {
   const roadMat = new THREE.MeshLambertMaterial({ map: asphaltTexture() });
   const pathMat = new THREE.MeshLambertMaterial({ color: 0x8d8578 });
   const parkMat = new THREE.MeshLambertMaterial({ color: 0x5f7d43 });
+  const forestFloorMat = new THREE.MeshLambertMaterial({ color: 0x3d5a2e });   // darker, needle-litter floor
+  const scrubMat = new THREE.MeshLambertMaterial({ color: 0x6e7a45 });          // muted olive scrub/heath
   const roofMats = [ '#7a4a3a', '#6d5a4a', '#5a5f66', '#77503c', '#616a58' ]
     .map(cc => new THREE.MeshLambertMaterial({ color: new THREE.Color(cc) }));
   const facadeMats = FACADE_COLORS.map(cc => {
@@ -2173,19 +2284,20 @@ function buildWorld(elements) {
   // member ways — our split query fetches both, so the ways would render a second coplanar
   // copy on top of the relation (z-fighting flash). Collect member way ids to skip them.
   const relMemberIds = new Set();
-  const relFootprints = [];      // centroids of relation buildings (order-independent dedup)
+  const relFootprints = [];      // bounding boxes of relation buildings (order-independent dedup)
   for (const el of elements) {
     if (el.type === 'relation' && el.tags && el.tags.building && el.members) {
-      let cx = 0, cz = 0, n = 0;
+      let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9, any=false;
       for (const m of el.members) {
         if (m.type === 'way' && m.ref != null) relMemberIds.add(m.ref);
         if (m.type === 'way' && (m.role || 'outer') === 'outer' && m.geometry)
-          for (const g of m.geometry) { const p = ll2xz(g.lat, g.lon); cx += p.x; cz += p.z; n++; }
+          for (const g of m.geometry) { const p = ll2xz(g.lat, g.lon);
+            minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z); any=true; }
       }
-      if (n) relFootprints.push({ x: cx/n, z: cz/n });
+      if (any) relFootprints.push({ minX, maxX, minZ, maxZ });
     }
   }
-  const builtFootprints = [];   // for de-duping near-identical standalone ways
+  const builtFootprints = [];   // bounding boxes of buildings already rendered
 
   for (const el of elements) {
    try {
@@ -2215,8 +2327,7 @@ function buildWorld(elements) {
         const myHoles = inners.filter(h => pointInPoly(h[0].x, h[0].z, outer));
         if (addBuilding(outer, myHoles, el.tags, nB)) {
           nB++;
-          let cx=0, cz=0; for (const p of outer) { cx+=p.x; cz+=p.z; }
-          builtFootprints.push({ x: cx/outer.length, z: cz/outer.length, n: outer.length });
+          builtFootprints.push(footprintBox(outer));
         }
       }
       const rt = poiType(el.tags);
@@ -2244,18 +2355,18 @@ function buildWorld(elements) {
     if (tags.building) {
       // skip a way that is a member of a building relation we already rendered
       if (el.id != null && relMemberIds.has(el.id)) continue;
-      // skip a near-duplicate footprint (same building mapped twice as separate ways)
-      let cxx = 0, czz = 0; for (const p of pts) { cxx += p.x; czz += p.z; }
-      cxx /= pts.length; czz /= pts.length;
+      // skip a footprint that substantially overlaps one we already built (same building
+      // mapped twice with different detail/vertex counts → z-fighting flash)
+      const bb = footprintBox(pts);
       let dup = false;
       for (const f of builtFootprints) {
-        if (Math.abs(f.x - cxx) < 1.5 && Math.abs(f.z - czz) < 1.5 && Math.abs(f.n - pts.length) <= 1) { dup = true; break; }
+        if (boxOverlapFrac(bb, f) > 0.6) { dup = true; break; }
       }
       if (!dup) for (const f of relFootprints) {
-        if (Math.abs(f.x - cxx) < 4 && Math.abs(f.z - czz) < 4) { dup = true; break; }   // way overlaps a relation building
+        if (boxOverlapFrac(bb, f) > 0.5) { dup = true; break; }   // overlaps a relation building
       }
       if (dup) continue;
-      if (addBuilding(pts, null, tags, nB)) { nB++; builtFootprints.push({ x: cxx, z: czz, n: pts.length }); }
+      if (addBuilding(pts, null, tags, nB)) { nB++; builtFootprints.push(bb); }
       continue;
     }
 
@@ -2320,35 +2431,51 @@ function buildWorld(elements) {
     }
 
     /* -------- parks / green -------- */
-    if (tags.leisure || (tags.landuse && /grass|forest|cemetery|recreation|green/.test(tags.landuse)) || tags.natural === 'wood') {
+    const lu = tags.landuse, nat = tags.natural, lei = tags.leisure;
+    const isGreen = lei || nat === 'wood' || nat === 'grassland' || nat === 'scrub' ||
+      nat === 'heath' || nat === 'meadow' || nat === 'fell' ||
+      (lu && /grass|meadow|forest|cemetery|recreation|green|orchard|vineyard|farmland|allotments|flowerbed/.test(lu));
+    if (isGreen) {
       if (pts.length < 4) continue;
       const poly = pts.slice(0, pts.length - 1);
+      const isForest = nat === 'wood' || lu === 'forest';
+      const isScrub = nat === 'scrub' || nat === 'heath' || nat === 'fell';
       const shape = new THREE.Shape(poly.map(p => new THREE.Vector2(p.x, -p.z)));
       const g = new THREE.ShapeGeometry(shape); g.rotateX(-Math.PI/2);
       const gp = g.attributes.position;
       for (let vi = 0; vi < gp.count; vi++)
         gp.setY(vi, elevAt(gp.getX(vi), gp.getZ(vi)) + 0.12);
       g.computeVertexNormals();
-      const m = new THREE.Mesh(g, parkMat);
+      const groundMat = isForest ? forestFloorMat : (isScrub ? scrubMat : parkMat);
+      const m = new THREE.Mesh(g, groundMat);
       m.receiveShadow = true;
       worldGroup.add(m);
-      // scatter trees inside
+      // scatter trees inside — forests are DENSE and mostly pine; parks are sparse and mixed;
+      // open grassland/farmland stays mostly clear
       const area = Math.abs(polyArea(poly));
-      const n = Math.min(60, Math.floor(area / 260));
+      const openGrass = (lu === 'grass' || lu === 'meadow' || lu === 'farmland' ||
+        lu === 'greenfield' || lu === 'village_green' || nat === 'grassland' || nat === 'meadow' ||
+        lei === 'pitch' || lei === 'playground' || lei === 'golf_course');
+      const density = isForest ? 70 : (openGrass ? 1400 : 260);   // trees per m²
+      const cap = isForest ? 900 : (openGrass ? 20 : 60);
+      const n = Math.min(cap, Math.floor(area / density));
       const bb = poly.reduce((a,p)=>({minX:Math.min(a.minX,p.x),maxX:Math.max(a.maxX,p.x),minZ:Math.min(a.minZ,p.z),maxZ:Math.max(a.maxZ,p.z)}),{minX:1e9,maxX:-1e9,minZ:1e9,maxZ:-1e9});
       for (let i = 0; i < n; i++) {
         const px = bb.minX + rnd()*(bb.maxX-bb.minX), pz = bb.minZ + rnd()*(bb.maxZ-bb.minZ);
-        if (pointInPoly(px, pz, poly)) treeSpots.push({ x: px, z: pz });
+        if (pointInPoly(px, pz, poly)) {
+          const pine = rnd() < (isForest ? 0.75 : 0.25);
+          treeSpots.push({ x: px, z: pz, pine });
+        }
       }
       continue;
     }
 
     /* -------- water & waterways -------- */
     if (tags.natural === 'coastline') { coastSegs.push(pts); continue; }
-    if (tags.waterway && /^(river|stream|canal|ditch)$/.test(tags.waterway)) {
-      const wWid = parseFloat(tags.width) || { river: 14, canal: 9, stream: 2.8, ditch: 1.6 }[tags.waterway];
+    if (tags.waterway && /^(river|stream|canal|ditch|drain)$/.test(tags.waterway)) {
+      const wWid = parseFloat(tags.width) || { river: 16, canal: 9, stream: 3, ditch: 1.6, drain: 1.4 }[tags.waterway];
       const m = ribbonMesh(pts, wWid, _wMats.flow, 0.09);
-      if (m) worldGroup.add(m);
+      if (m) { worldGroup.add(m); registerWaterStrip(pts, wWid); }
       continue;
     }
     if (tags.natural === 'water' || tags.water || tags.waterway === 'riverbank' || tags.waterway === 'dock') {
@@ -2688,29 +2815,56 @@ function plantDashes() {
 /* trees as instanced meshes */
 function plantTrees() {
   if (!treeSpots.length) return;
-  const n = treeSpots.length;
-  const trunkG = new THREE.CylinderGeometry(0.22, 0.32, 3.2, 6);
-  const crownG = new THREE.IcosahedronGeometry(2.4, 1);
-  const trunkM = new THREE.MeshLambertMaterial({ color: 0x5a4632 });
-  const crownM = new THREE.MeshLambertMaterial({ color: 0x4a6b33 });
-  const trunks = new THREE.InstancedMesh(trunkG, trunkM, n);
-  const crowns = new THREE.InstancedMesh(crownG, crownM, n);
-  trunks.castShadow = crowns.castShadow = QUALITY.shadows;
+  const pineSpots = treeSpots.filter(t => t.pine);
+  const leafSpots = treeSpots.filter(t => !t.pine);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3();
-  for (let i = 0; i < n; i++) {
-    const t = treeSpots[i]; const s = 0.8 + rnd() * 0.8;
-    const te = elevAt(t.x, t.z);
-    P.set(t.x, te + 1.6*s, t.z); S.set(s, s, s); Q.identity();
-    M.compose(P, Q, S); trunks.setMatrixAt(i, M);
-    P.set(t.x, te + (3.2 + 1.4)*s, t.z); S.set(s*(0.85+rnd()*0.4), s*(0.9+rnd()*0.5), s*(0.85+rnd()*0.4));
-    M.compose(P, Q, S); crowns.setMatrixAt(i, M);
+
+  // broadleaf (round crown)
+  if (leafSpots.length) {
+    const n = leafSpots.length;
+    const trunkG = new THREE.CylinderGeometry(0.22, 0.32, 3.2, 6);
+    const crownG = new THREE.IcosahedronGeometry(2.4, 1);
+    const trunkM = new THREE.MeshLambertMaterial({ color: 0x5a4632 });
+    const crownM = new THREE.MeshLambertMaterial({ color: 0x4a6b33 });
+    const trunks = new THREE.InstancedMesh(trunkG, trunkM, n);
+    const crowns = new THREE.InstancedMesh(crownG, crownM, n);
+    trunks.castShadow = crowns.castShadow = QUALITY.shadows;
+    for (let i = 0; i < n; i++) {
+      const t = leafSpots[i]; const s = 0.8 + rnd() * 0.8;
+      const te = elevAt(t.x, t.z);
+      P.set(t.x, te + 1.6*s, t.z); S.set(s, s, s); Q.identity();
+      M.compose(P, Q, S); trunks.setMatrixAt(i, M);
+      P.set(t.x, te + (3.2 + 1.4)*s, t.z); S.set(s*(0.85+rnd()*0.4), s*(0.9+rnd()*0.5), s*(0.85+rnd()*0.4));
+      M.compose(P, Q, S); crowns.setMatrixAt(i, M);
+    }
+    worldGroup.add(trunks, crowns);
   }
-  worldGroup.add(trunks, crowns);
+
+  // pine / conifer (tall narrow cone) — taller trunks, deep-green cones, some stacked for a fir look
+  if (pineSpots.length) {
+    const n = pineSpots.length;
+    const trunkG = new THREE.CylinderGeometry(0.16, 0.26, 4.0, 6);
+    const coneG = new THREE.ConeGeometry(1.7, 5.5, 8);
+    const trunkM = new THREE.MeshLambertMaterial({ color: 0x4a3a28 });
+    const coneM = new THREE.MeshLambertMaterial({ color: 0x2f5230 });
+    const trunks = new THREE.InstancedMesh(trunkG, trunkM, n);
+    const cones = new THREE.InstancedMesh(coneG, coneM, n);
+    trunks.castShadow = cones.castShadow = QUALITY.shadows;
+    for (let i = 0; i < n; i++) {
+      const t = pineSpots[i]; const s = 0.85 + rnd() * 0.9;
+      const te = elevAt(t.x, t.z);
+      P.set(t.x, te + 2.0*s, t.z); S.set(s, s, s); Q.identity();
+      M.compose(P, Q, S); trunks.setMatrixAt(i, M);
+      P.set(t.x, te + (4.0 + 2.4)*s, t.z); S.set(s*(0.8+rnd()*0.3), s*(0.9+rnd()*0.4), s*(0.8+rnd()*0.3));
+      M.compose(P, Q, S); cones.setMatrixAt(i, M);
+    }
+    worldGroup.add(trunks, cones);
+  }
 }
 
 /* ---------------- FALLBACK CITY (offline) ---------------- */
 function fallbackElements() {
-  loadMsg('Offline — generating procedural Vasastan');
+  loadMsg('Offline — generating a procedural city');
   const els = [];
   const blockW = 90, blockH = 70, streets = 8;
   const rot = 0.42;                                        // Stockholm grid tilt
@@ -4554,6 +4708,10 @@ let pendingLabel = DEFAULT_CENTER.label;
 
 function initSearch() {
   let acTimer = null, acSeq = 0, topHit = null;
+  // reflect the randomly-chosen default location in the menu
+  $('playbtn').textContent = 'PLAY: ' + pendingLabel.toUpperCase();
+  $('loadmsg').textContent = 'Search anywhere on Earth — or play a random spot: ' + pendingLabel;
+  $('areaname').textContent = pendingLabel.split(',')[0];
   const pick = h => {
     setCenter(parseFloat(h.lat), parseFloat(h.lon));
     pendingLabel = h.display_name.split(',').slice(0, 2).join(',');
@@ -4640,7 +4798,7 @@ function initSearch() {
       $('loadmsg').textContent = netMode === 'host'
         ? 'Pick a location, then share the code that appears with your friends.'
         : (netMode === 'join' ? 'Ask your host for their 4-letter code — or browse Active Matches.'
-          : 'Search anywhere on Earth — or play the default: Vasastan, Stockholm');
+          : 'Search anywhere on Earth — or play a random spot: ' + pendingLabel);
     });
   });
 
