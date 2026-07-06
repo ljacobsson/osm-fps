@@ -10,18 +10,18 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Map Wars — Play Any City on Earth">
 <meta property="og:description" content="An open-world FPS that renders any real city live from map data. Fight, drive and explore anywhere on the planet — right in your browser.">
-<meta property="og:image" content="https://YOURDOMAIN/map_wars_og.jpg">
+<meta property="og:image" content="https://map-wars.com/map_wars_og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Map Wars key art — a cel-shaded hero overlooking a stylized city rendered from map data, with a glowing globe at sunset.">
-<meta property="og:url" content="https://YOURDOMAIN/">
+<meta property="og:url" content="https://map-wars.com/">
 <meta property="og:site_name" content="Map Wars">
 
 <!-- Twitter / X -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Map Wars — Play Any City on Earth">
 <meta name="twitter:description" content="An open-world FPS that renders any real city live from map data. Fight, drive and explore anywhere on the planet.">
-<meta name="twitter:image" content="https://YOURDOMAIN/map_wars_og.jpg">
+<meta name="twitter:image" content="https://map-wars.com/map_wars_og.jpg">
 <meta name="twitter:image:alt" content="Map Wars key art — a cel-shaded hero overlooking a stylized city rendered from map data, with a glowing globe at sunset.">
 <meta name="theme-color" content="#1a2230">
 <style>
@@ -109,6 +109,14 @@
   /* ---- top bar ---- */
   #topbar{position:absolute;top:18px;right:24px;text-align:right;color:var(--hud);text-shadow:0 2px 5px #000}
   #street{font-size:15px;font-weight:700;letter-spacing:1px;color:var(--accent)}
+  #toast{position:absolute;left:50%;top:78px;transform:translateX(-50%);opacity:0;transition:opacity .3s;
+    background:rgba(10,12,18,.82);border:1px solid rgba(232,176,75,.5);color:#f2ede3;font-size:14px;
+    font-weight:600;letter-spacing:.5px;padding:9px 18px;border-radius:6px;white-space:nowrap;pointer-events:none;z-index:6}
+  #carprompt{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);display:none;
+    background:rgba(10,12,18,.7);border:1px solid rgba(242,237,227,.3);color:#f2ede3;font-size:15px;
+    padding:8px 16px;border-radius:6px;pointer-events:none;z-index:6}
+  #carprompt b{color:var(--accent)}
+  body.driving #crosshair{display:none}
   #kills{font-size:12px;letter-spacing:2px;margin-top:3px;color:#cfc8ba}
 
   /* ---- area title card (GTA style) ---- */
@@ -566,11 +574,13 @@
   <button id="startbtn">ENTER THE CITY</button>
   <div id="controls">
     <b>WASD</b> move &nbsp; <b>MOUSE</b> look &nbsp; <b>LMB</b> fire &nbsp; <b>R</b> reload<br>
-    <b>SHIFT</b> sprint &nbsp; <b>SPACE</b> jump &nbsp; <b>1-5</b> weapons &nbsp; <b>M</b> map &nbsp; <b>ESC</b> pause
+    <b>SHIFT</b> sprint &nbsp; <b>SPACE</b> jump &nbsp; <b>F</b> steal car &nbsp; <b>1-5</b> weapons &nbsp; <b>M</b> map &nbsp; <b>ESC</b> pause
   </div>
 </div>
 
 <div id="hud">
+  <div id="toast"></div>
+  <div id="carprompt">Press <b>F</b> to steal car</div>
   <div id="crosshair"><span class="h l"></span><span class="h r"></span><span class="v t"></span><span class="v b"></span></div>
   <div id="hitmark"><span class="a"></span><span class="b"></span><span class="c"></span><span class="d"></span></div>
   <div id="dmg"></div>
@@ -850,7 +860,8 @@ function osmQueries() {
                `way["railway"~"^(rail|light_rail|subway|tram|narrow_gauge|preserved|funicular)$"](${bb});` +
                `way["leisure"~"park|garden|playground|pitch|common|golf_course|dog_park|nature_reserve"](${bb});` +
                `way["landuse"~"grass|meadow|forest|cemetery|recreation_ground|village_green|greenfield|orchard|vineyard|farmland|allotments|flowerbed"](${bb});` +
-               `way["natural"~"wood|grassland|scrub|heath|meadow|fell"](${bb}););out geom;`,
+               `way["natural"~"wood|grassland|scrub|heath|meadow|fell"](${bb});` +
+               `way["amenity"="parking"](${bb}););out geom;`,
     water:     `[out:json][timeout:30];(way["natural"~"water|coastline"](${bb});way["water"](${bb});` +
                `way["waterway"~"^(riverbank|dock|river|stream|canal|ditch|drain)$"](${bb});` +
                `relation["natural"="water"](${bb});relation["waterway"="riverbank"](${bb});relation["water"](${bb}););out geom;`,
@@ -1239,6 +1250,7 @@ const raycastTargets = [];   // meshes bullets can hit
 const treeSpots = [];
 const bridgeDecks = [];      // { pts, deckYs, halfW } — walkable ramped bridge surfaces
 const railLines = [];        // { pts, kind } — for spawning moving trains
+const parkingAreas = [];     // { poly, bb } — surface car parks for parked cars
 const trains = [];           // active moving trains
 const shops = [];            // { x, z, name, type }
 const waterPolys = [];       // { outer, holes, aabb, level } — swim/no-walk zones
@@ -2214,6 +2226,7 @@ function resetWorld() {
   wayWater.length = 0; coastSegs.length = 0; waterRels.length = 0;
   dashSpots.length = 0; waterTexList.length = 0; bridgeDecks.length = 0;
   railLines.length = 0;
+  parkingAreas.length = 0;
   for (const t of trains) scene.remove(t.grp); trains.length = 0;
   for (const mk of medkits) scene.remove(mk.mesh); medkits.length = 0;
   for (const ap of ammoPacks) scene.remove(ap.mesh); ammoPacks.length = 0;
@@ -2451,6 +2464,23 @@ function buildWorld(elements) {
     }
 
     /* -------- parks / green -------- */
+    /* -------- parking areas -------- */
+    if (tags.amenity === 'parking') {
+      if (pts.length < 4) continue;
+      const poly = pts.slice(0, pts.length - 1);
+      const shape = new THREE.Shape(poly.map(p => new THREE.Vector2(p.x, -p.z)));
+      const g = new THREE.ShapeGeometry(shape); g.rotateX(-Math.PI/2);
+      const gp = g.attributes.position;
+      for (let vi = 0; vi < gp.count; vi++) gp.setY(vi, elevAt(gp.getX(vi), gp.getZ(vi)) + 0.1);
+      g.computeVertexNormals();
+      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0x53565c }));
+      m.receiveShadow = true; worldGroup.add(m);
+      let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9;
+      for (const p of poly) { minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z); }
+      parkingAreas.push({ poly, bb:{minX,maxX,minZ,maxZ} });
+      continue;
+    }
+
     const lu = tags.landuse, nat = tags.natural, lei = tags.leisure;
     const isGreen = lei || nat === 'wood' || nat === 'grassland' || nat === 'scrub' ||
       nat === 'heath' || nat === 'meadow' || nat === 'fell' ||
@@ -3215,6 +3245,7 @@ const raycaster = new THREE.Raycaster();
 const sparks = [];
 function shoot() {
   const W = WEAPONS[wIdx];
+  if (drive.on) return;                                 // can't drive and shoot at once
   if (cd > 0 || reloading > 0 || !player.alive) return;
   if (W.kind !== 'melee' && mag <= 0) {
     if (W.reserve > 0 && (W.savedRes ?? reserve) > 0) reload();
@@ -3431,6 +3462,7 @@ function updateProjectiles(dt) {
 }
 function reload() {
   const W = WEAPONS[wIdx];
+  if (drive.on) return;
   if (W.kind === 'melee' || reloading > 0 || mag === W.mag || reserve <= 0) return;
   reloading = W.kind === 'hitscan' ? 1.3 : 0.6;
   $('reloadhint').textContent = W.kind === 'hitscan' ? 'RELOADING…' : 'READYING…';
@@ -3935,16 +3967,106 @@ function makeCar() {
 function spawnCars() {
   const drivable = roadPaths.filter(r => r.drivable && r.pts.length > 3 && r.width >= 6.5);
   const n = Math.min(14, drivable.length);
-  for (let i = 0; i < n; i++) {
+  let tries = 0;
+  while (cars.length < n && tries < n * 8) {
+    tries++;
     const road = drivable[Math.floor(rnd()*drivable.length)];
+    const seg = Math.floor(rnd()*(road.pts.length-1));
+    const t = rnd();
+    const a = road.pts[seg], b = road.pts[seg+1] || a;
+    const cx = a.x + (b.x-a.x)*t, cz = a.z + (b.z-a.z)*t;
+    // never spawn a car on top of the player's spawn point
+    if (Math.hypot(cx - player.pos.x, cz - player.pos.z) < 14) continue;
+    // avoid stacking two cars in the same spot
+    if (cars.some(c => { const p = c.road.pts[c.seg]; return Math.hypot(p.x - a.x, p.z - a.z) < 6; })) continue;
     const car = makeCar();
+    car.position.set(cx, elevAt(cx, cz), cz);
     scene.add(car);
-    cars.push({ grp: car, road, seg: Math.floor(rnd()*(road.pts.length-1)), t: rnd(),
-      dir: rnd() < 0.5 ? 1 : -1, speed: 6 + rnd()*4, lane: road.width * 0.22 });
+    cars.push({ grp: car, road, seg, t, dir: rnd() < 0.5 ? 1 : -1, speed: 6 + rnd()*4, lane: road.width * 0.22,
+      wx: cx, wz: cz });
   }
 }
+function updateCars_OLD_REMOVED() { /* replaced by network-aware updateCars below */ }
+
+/* ---------------- CARJACKING & DRIVING ---------------- */
+const drive = { on: false, car: null, speed: 0, yaw: 0, steer: 0 };
+/* ---------------- ROAD NETWORK (for intelligent traffic) ---------------- */
+let roadGraph = null;
+function buildRoadGraph() {
+  const drivable = roadPaths.filter(r => r.drivable && r.pts.length >= 2 && r.width >= 5.5);
+  const CELL = 10;
+  const key = (p) => Math.round(p.x / CELL) + ',' + Math.round(p.z / CELL);
+  const junctions = new Map();
+  const addEnd = (road, end) => {
+    const p = end === 0 ? road.pts[0] : road.pts[road.pts.length - 1];
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      const k = Math.round(p.x/CELL)+dx + ',' + (Math.round(p.z/CELL)+dz);
+      if (junctions.has(k)) { junctions.get(k).push({ road, end }); return; }
+    }
+    junctions.set(key(p), [{ road, end }]);
+  };
+  for (const r of drivable) { addEnd(r, 0); addEnd(r, 1); }
+  roadGraph = { drivable, junctions, CELL, key };
+}
+// pick the next road to turn onto at a junction, favoring straight-ahead but with randomness
+function nextRoad(road, exitEnd, headingX, headingZ) {
+  if (!roadGraph) return null;
+  const p = exitEnd === 0 ? road.pts[0] : road.pts[road.pts.length - 1];
+  const CELL = roadGraph.CELL;
+  const opts = [];
+  for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+    const k = Math.round(p.x/CELL)+dx + ',' + (Math.round(p.z/CELL)+dz);
+    const list = roadGraph.junctions.get(k);
+    if (list) for (const e of list) { if (e.road !== road) opts.push(e); }
+  }
+  if (!opts.length) return null;
+  let best = null, bestScore = -1e9;
+  for (const o of opts) {
+    const rp = o.road.pts;
+    const enter = o.end === 0 ? rp[0] : rp[rp.length - 1];
+    const nxt   = o.end === 0 ? rp[1] : rp[rp.length - 2];
+    let hx = nxt.x - enter.x, hz = nxt.z - enter.z;
+    const l = Math.hypot(hx, hz) || 1; hx/=l; hz/=l;
+    const align = hx*headingX + hz*headingZ;
+    const score = align + rnd() * 1.3;                     // randomness → unpredictable turns
+    if (score > bestScore) { bestScore = score; best = o; }
+  }
+  if (!best) return null;
+  return { road: best.road, dir: best.end === 0 ? 1 : -1,
+           seg: best.end === 0 ? 0 : best.road.pts.length - 2 };
+}
+
+/* ---------------- PARKED CARS (in parking areas) ---------------- */
+function spawnParkedCars() {
+  if (!parkingAreas.length) return;
+  let placed = 0, budget = IS_MOBILE ? 14 : 30;
+  for (const pk of parkingAreas) {
+    if (placed >= budget) break;
+    const bb = pk.bb, poly = pk.poly;
+    const area = (bb.maxX-bb.minX) * (bb.maxZ-bb.minZ);
+    const want = Math.min(8, Math.max(1, Math.floor(area / 320)));
+    const rowAng = rnd() * Math.PI;                        // cars in a lot share a row orientation
+    let tries = 0;
+    for (let i = 0; i < want && placed < budget && tries < want*6; tries++) {
+      const px = bb.minX + rnd()*(bb.maxX-bb.minX);
+      const pz = bb.minZ + rnd()*(bb.maxZ-bb.minZ);
+      if (!pointInPoly(px, pz, poly)) continue;
+      if (Math.hypot(px - player.pos.x, pz - player.pos.z) < 10) continue;
+      if (cars.some(c => Math.hypot((c.wx??c.grp.position.x) - px, (c.wz??c.grp.position.z) - pz) < 3)) continue;
+      const car = makeCar();
+      car.position.set(px, elevAt(px, pz), pz);
+      car.rotation.y = rowAng + (rnd() < 0.5 ? 0 : Math.PI);
+      scene.add(car);
+      cars.push({ grp: car, road: null, seg: 0, t: 0, dir: 1, speed: 0, lane: 0,
+        wx: px, wz: pz, parked: true });
+      placed++; i++;
+    }
+  }
+}
+
 function updateCars(dt) {
   for (const c of cars) {
+    if (c.hijacked || c.parked) continue;              // player-driven or left parked
     const pts = c.road.pts;
     let a = pts[c.seg], b = pts[c.seg + c.dir] || null;
     if (!b) { c.dir *= -1; b = pts[c.seg + c.dir]; if (!b) continue; }
@@ -3952,27 +4074,159 @@ function updateCars(dt) {
     c.t += (c.speed * dt) / segLen;
     if (c.t >= 1) {
       c.t = 0; c.seg += c.dir;
-      if (c.seg <= 0 || c.seg >= pts.length-1) c.dir *= -1;
-      a = pts[c.seg]; b = pts[c.seg + c.dir] || a;
+      // reached the end of this road? turn onto a connected road at the junction
+      if (c.seg <= 0 || c.seg >= pts.length - 1) {
+        const exitEnd = c.seg <= 0 ? 0 : 1;
+        const hx = Math.sin(c.grp.rotation.y), hz = Math.cos(c.grp.rotation.y);
+        const nx = nextRoad(c.road, exitEnd, hx, hz);
+        if (nx) { c.road = nx.road; c.dir = nx.dir; c.seg = nx.seg; c.t = 0;
+                  c.lane = c.road.width * 0.22; c.targetSpeed = 5 + rnd()*6; }
+        else { c.dir *= -1; }                              // dead end → turn around
+      }
+      a = c.road.pts[c.seg]; b = c.road.pts[c.seg + c.dir] || a;
     }
-    const nx = -(b.z-a.z)/segLen, nz = (b.x-a.x)/segLen;   // lane offset (right side)
+    // ease speed toward a per-car target so traffic varies
+    if (c.targetSpeed === undefined) c.targetSpeed = c.speed;
+    c.speed += (c.targetSpeed - c.speed) * Math.min(1, dt * 0.7);
+    if (rnd() < 0.004) c.targetSpeed = 4 + rnd()*7;
+    const pcur = c.road.pts;
+    a = pcur[c.seg]; b = pcur[c.seg + c.dir] || a;
+    const sl = Math.hypot(b.x-a.x, b.z-a.z) || 1;
+    const nrx = -(b.z-a.z)/sl, nrz = (b.x-a.x)/sl;
     const off = c.lane * c.dir;
-    const cx = a.x + (b.x-a.x)*c.t + nx*off, cz = a.z + (b.z-a.z)*c.t + nz*off;
+    const cx = a.x + (b.x-a.x)*c.t + nrx*off, cz = a.z + (b.z-a.z)*c.t + nrz*off;
     c.grp.position.set(cx, elevAt(cx, cz), cz);
     c.grp.rotation.y = Math.atan2(b.x-a.x, b.z-a.z);
-    c.wx = cx; c.wz = cz;                                   // cache world pos for collision
+    c.wx = cx; c.wz = cz;
   }
 }
+
+function nearestCar(maxD) {
+  let best = null, bd = maxD;
+  for (const c of cars) {
+    if (c.hijacked) continue;
+    const d = Math.hypot(player.pos.x - c.grp.position.x, player.pos.z - c.grp.position.z);
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best;
+}
+function enterCar(c) {
+  drive.on = true; drive.car = c; c.hijacked = true; c.parked = false;
+  drive.yaw = c.grp.rotation.y; drive.speed = 0; drive.steer = 0;
+  player.inCar = true;
+  if (gun) gun.visible = false;                        // no shooting while driving
+  sfxThud(); flashToast('Vehicle hijacked — W/S drive · A/D steer · F exit');
+}
+function exitCar() {
+  const c = drive.car;
+  drive.on = false; player.inCar = false;
+  if (gun) gun.visible = true;                         // weapon back in hand
+  if (c) {
+    // leave the car parked exactly where the player stopped it — it stays put (no longer
+    // driven by the AI patrol, so it can't snap back to the road centerline)
+    c.hijacked = false;
+    c.parked = true;                                   // updateCars skips parked cars
+    c.speed = 0;
+    // place the player beside the driver door
+    const sx = Math.cos(drive.yaw), sz = -Math.sin(drive.yaw);
+    player.pos.set(c.grp.position.x + sx*1.8, elevAt(c.grp.position.x, c.grp.position.z) + player.eyeH, c.grp.position.z + sz*1.8);
+    player.vel.set(0,0,0);
+    player.yaw = drive.yaw;
+    vehicleHitCd = 0.6;                                 // grace so stepping out never clips you
+  }
+  drive.car = null;
+}
+function toggleCar() {
+  if (drive.on) { exitCar(); return; }
+  const c = nearestCar(4.5);
+  if (c) enterCar(c);
+  else flashToast('No car nearby to hijack');
+}
+function updateDriving(dt) {
+  const c = drive.car; if (!c) return;
+  // throttle / brake
+  let throttle = 0;
+  if (keys['KeyW']) throttle += 1;
+  if (keys['KeyS']) throttle -= 1;
+  throttle += -joyY;                                    // mobile stick
+  const MAXF = 28, MAXR = -10;
+  drive.speed += throttle * 22 * dt;
+  drive.speed *= (1 - dt * 1.1);                        // drag
+  drive.speed = Math.max(MAXR, Math.min(MAXF, drive.speed));
+  if (Math.abs(drive.speed) < 0.12 && !throttle) drive.speed = 0;
+  // steering — only bites when moving; reverses when backing up
+  let steer = 0;
+  if (keys['KeyA']) steer += 1;
+  if (keys['KeyD']) steer -= 1;
+  steer += -joyX;
+  const speedFactor = Math.min(1, Math.abs(drive.speed) / 8);
+  drive.yaw += steer * 1.7 * dt * speedFactor * (drive.speed < 0 ? -1 : 1);
+
+  // integrate position along facing
+  const fx = Math.sin(drive.yaw), fz = Math.cos(drive.yaw);
+  const nx = c.grp.position.x + fx * drive.speed * dt;
+  const nz = c.grp.position.z + fz * drive.speed * dt;
+
+  // simple building collision: if blocked, stop
+  const blocked = collidePoint(nx, nz, 1.2);
+  if (blocked) { drive.speed *= -0.25; }
+  else { c.grp.position.x = nx; c.grp.position.z = nz; }
+  const gy = elevAt(c.grp.position.x, c.grp.position.z);
+  c.grp.position.y = gy;
+  c.grp.rotation.y = drive.yaw;
+  c.wx = c.grp.position.x; c.wz = c.grp.position.z;
+
+  // wheels spin visually (children 2..5 are wheels)
+  // camera: chase cam behind and above the car
+  const camDist = 7.5, camHigh = 3.4;
+  const cpx = c.grp.position.x - fx * camDist;
+  const cpz = c.grp.position.z - fz * camDist;
+  const cpy = gy + camHigh;
+  camera.position.set(cpx, cpy, cpz);
+  // look at the car (slightly ahead)
+  const lookAt = new THREE.Vector3(c.grp.position.x + fx*4, gy + 1.2, c.grp.position.z + fz*4);
+  camera.lookAt(lookAt);
+  // keep the player "inside" so weapons/HUD stay coherent
+  player.pos.set(c.grp.position.x, gy + player.eyeH, c.grp.position.z);
+  player.yaw = drive.yaw;
+
+  // run over enemies while driving
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    if (Math.hypot(e.grp.position.x - c.grp.position.x, e.grp.position.z - c.grp.position.z) < 2.4 && Math.abs(drive.speed) > 6) {
+      hurtEnemy(e, 60, e.grp.position.clone().setY(1.2));
+    }
+  }
+}
+// point-vs-building collision test (reuses raycastTargets AABBs via buildings list)
+function collidePoint(x, z, r) {
+  for (const b of buildings) {
+    const a = b.aabb;
+    if (x > a.minX - r && x < a.maxX + r && z > a.minZ - r && z < a.maxZ + r) {
+      if (pointInPoly(x, z, b.poly)) return true;
+    }
+  }
+  return false;
+}
+// lightweight on-screen toast
+let toastT = 0;
+function flashToast(msg) {
+  const el = $('toast'); if (!el) return;
+  el.textContent = msg; el.style.opacity = '1'; toastT = 3.2;
+}
+
 
 // getting run over hurts: cars bruise you, trains are lethal. Brief cooldown between hits.
 let vehicleHitCd = 0;
 function checkVehicleHits(dt) {
-  if (!player.alive) return;
+  if (!player.alive || drive.on) return;               // immune while driving your own car
   if (vehicleHitCd > 0) { vehicleHitCd -= dt; return; }
   const px = player.pos.x, pz = player.pos.z, py = player.pos.y - player.eyeH;
   // cars
   for (const c of cars) {
+    if (c.hijacked || c.parked) continue;                  // your car / a parked car can't run you over
     if (c.wx === undefined) continue;
+    if (Math.abs(c.speed) < 3) continue;                   // a stationary/crawling car does no damage
     const d = Math.hypot(px - c.wx, pz - c.wz);
     if (d < 2.2 && Math.abs(py - elevAt(c.wx, c.wz)) < 2.5) {
       const dmg = 14 + c.speed * 1.2;                       // ~20-26
@@ -4297,6 +4551,7 @@ function initInput() {
     }
     if (e.code === 'Escape' && mapOpen) { toggleFullMap(false); }
     if (e.code === 'KeyR') reload();
+    if (e.code === 'KeyF') toggleCar();
     if (WKEY[e.code] !== undefined) switchWeapon(WKEY[e.code]);
     if (e.code === 'Space') e.preventDefault();
   });
@@ -4349,7 +4604,15 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(0.05, clock.getDelta());
   if (started && !paused) {
-    updatePlayer(dt);
+    if (drive.on) updateDriving(dt); else updatePlayer(dt);
+    if (toastT > 0) { toastT -= dt; if (toastT <= 0) { const el = $('toast'); if (el) el.style.opacity = '0'; } }
+    // "press F" prompt when standing near a stealable car
+    const cp = $('carprompt');
+    if (cp) {
+      if (!drive.on && nearestCar(4.5)) cp.style.display = 'block';
+      else cp.style.display = 'none';
+    }
+    document.body.classList.toggle('driving', drive.on);
     updateEnemies(dt);
     updateCars(dt);
     updateSparks(dt);
@@ -5059,7 +5322,9 @@ async function loadWorld() {
 
   findSpawn();
   spawnEnemies();
+  buildRoadGraph();
   spawnCars();
+  spawnParkedCars();
   spawnMedkits();
   spawnAmmoPacks();
   spawnTrains();
